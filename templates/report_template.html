@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vulnerability Scan Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .vulnerability { margin: 20px 0; padding: 10px; border-left: 4px solid #ccc; }
+        .high { border-left-color: #dc3545; }
+        .medium { border-left-color: #ffc107; }
+        .low { border-left-color: #28a745; }
+        .timestamp { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Vulnerability Scan Report</h1>
+        <p>Target URL: {{ report.url }}</p>
+        <p>Scan Date: {{ timestamp }}</p>
+    </div>
+
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Vulnerabilities Found: {{ report.vulnerabilities|length }}</p>
+    </div>
+
+    <div class="findings">
+        <h2>Detailed Findings</h2>
+        {% if report.vulnerabilities %}
+            {% for vuln in report.vulnerabilities %}
+                <div class="vulnerability {{ vuln.severity|lower }}">
+                    <h3>{{ vuln.severity }} Severity Finding</h3>
+                    <p>{{ vuln.description }}</p>
+                    <p class="timestamp">Detected at: {{ vuln.timestamp }}</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No vulnerabilities were detected during the scan.</p>
+        {% endif %}
+    </div>
+</body>
+</html> 

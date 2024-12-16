@@ -1,0 +1,1505 @@
+{
+  "scan_id": "43f8ccb8-21e3-435f-af69-e3d18a2bb21c",
+  "url": "http://zero.webappsecurity.com/",
+  "vulnerabilities": [],
+  "logs": [
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Starting XSS scan for http://zero.webappsecurity.com/index.html",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Phase 1: Initial Reconnaissance",
+      "details": null,
+      "color": "blue"
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "color": "red"
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:37",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:57",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:16",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Starting SQL injection scan for http://zero.webappsecurity.com/index.html",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Phase 2: Analyzing entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Found 2 potential entry points",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "INFO",
+      "message": "Phase 3: Testing for SQL injection",
+      "details": null,
+      "scanner": "SQLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "INFO",
+      "message": "Starting CSRF scan for http://zero.webappsecurity.com/index.html",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "INFO",
+      "message": "Phase 1: Accessing target page",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "ERROR",
+      "message": "Scan error: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "CSRFScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "INFO",
+      "message": "Starting security header scan for http://zero.webappsecurity.com/index.html",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "INFO",
+      "message": "Phase 1: Collecting headers",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "DEBUG",
+      "message": "HEAD request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "DEBUG",
+      "message": "GET request failed: BaseScanner.make_request() got an unexpected keyword argument 'allow_redirects'",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "ERROR",
+      "message": "Failed to access target URL",
+      "details": null,
+      "scanner": "HeaderScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:55",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:16:56",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/index.html#carousel",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:15",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/#carousel",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:34",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:35",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "INFO",
+      "message": "Starting SSL scan for http://zero.webappsecurity.com/index.html",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "ERROR",
+      "message": "Error testing weak ciphers: 'SSLScanner' object has no attribute 'test_cipher'",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    },
+    {
+      "timestamp": "2024-12-15 21:17:54",
+      "level": "ERROR",
+      "message": "Error getting certificate info: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)",
+      "details": null,
+      "scanner": "SSLScanner",
+      "url": null
+    }
+  ],
+  "stats": {
+    "total_urls": 4,
+    "total_vulnerabilities": 0,
+    "unique_vulnerabilities": 0,
+    "severity_counts": {},
+    "scan_duration": null
+  },
+  "status": "completed"
+}

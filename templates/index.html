@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0">Security Scanner</h3>
+                </div>
+                <div class="card-body">
+                    <form id="scanForm">
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Target URL:</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-globe"></i></span>
+                                <input type="text" class="form-control" id="url" name="url" 
+                                       placeholder="Enter website URL (e.g., example.com)" required>
+                            </div>
+                            <div class="form-text text-muted">
+                                Make sure you have permission to scan the target website.
+                            </div>
+                        </div>
+
+                        <!-- Vulnerability Check Options -->
+                        <div class="vulnerability-options mb-4">
+                            <h5 class="mb-3">Select Vulnerabilities to Check:</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkXSS" checked>
+                                        <label class="form-check-label" for="checkXSS">
+                                            XSS Vulnerabilities
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkSQL" checked>
+                                        <label class="form-check-label" for="checkSQL">
+                                            SQL Injection
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkSSL" checked>
+                                        <label class="form-check-label" for="checkSSL">
+                                            SSL/TLS Issues
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkHeaders" checked>
+                                        <label class="form-check-label" for="checkHeaders">
+                                            Security Headers
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkCSRF" checked>
+                                        <label class="form-check-label" for="checkCSRF">
+                                            CSRF Vulnerabilities
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="checkClickjacking" checked>
+                                        <label class="form-check-label" for="checkClickjacking">
+                                            Clickjacking
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-search"></i> Start Selected Scans
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="quickScanBtn">
+                                <i class="fa fa-bolt"></i> Quick Scan (All Checks)
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Progress Section -->
+                    <div id="scanProgress" class="floating-progress">
+                        <div class="card-body">
+                            <div class="card-title">
+                                <span>
+                                    <i class="fa fa-cog fa-spin"></i> Scan in Progress
+                                </span>
+                                <button type="button" class="close-btn" onclick="minimizeScan()">
+                                    <i class="fa fa-minus"></i>
+                                </button>
+                            </div>
+                            <div class="scan-url" id="scanUrl"></div>
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="scan-details">
+                                <div id="currentStage">Initializing scan...</div>
+                                <div id="scanDetails"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="scanResults" class="mt-4">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add this after your main content -->
+<div id="scanProgressBox" class="floating-scan-box">
+    <div class="header">
+        <h6>
+            <i class="fa fa-shield-alt fa-spin"></i>
+            Security Scan
+        </h6>
+        <div class="actions">
+            <button type="button" class="control-btn" onclick="toggleScanPause()" id="pauseButton">
+                <i class="fa fa-pause"></i>
+            </button>
+            <button type="button" class="minimize-btn" onclick="toggleScanBox()">
+                <i class="fa fa-minus"></i>
+            </button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="url" id="scanUrl"></div>
+        <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                 role="progressbar" style="width: 0%" 
+                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            </div>
+        </div>
+        <div class="details">
+            <div id="currentStage">Initializing scan...</div>
+            <div id="scanStats"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanForm = document.getElementById('scanForm');
+    const quickScanBtn = document.getElementById('quickScanBtn');
+
+    // Handle form submission
+    scanForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const url = document.getElementById('url').value;
+        const checks = {
+            xss: document.getElementById('checkXSS').checked,
+            sql: document.getElementById('checkSQL').checked,
+            csrf: document.getElementById('checkCSRF').checked,
+            headers: document.getElementById('checkHeaders').checked,
+            ssl: document.getElementById('checkSSL').checked
+        };
+
+        fetch('/scan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ url, checks })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.scan_id) {
+                showSuccess('Scan started successfully');
+                pollStatus(data.scan_id);
+            } else {
+                showError(data.error || 'Failed to start scan');
+            }
+        })
+        .catch(error => {
+            showError('Error starting scan: ' + error.message);
+        });
+    });
+
+    // Handle quick scan button
+    quickScanBtn.addEventListener('click', function() {
+        const url = document.getElementById('url').value;
+        if (!url) {
+            alert('Please enter a URL');
+            return;
+        }
+
+        // Enable all checks
+        const checks = {
+            xss: true,
+            sql: true,
+            ssl: true,
+            headers: true,
+            csrf: true,
+            clickjacking: true
+        };
+
+        startScan(url, checks);
+    });
+});
+
+let currentScanId = null;
+let scanPaused = false;
+
+function startScan(url, checks) {
+    // Show floating progress box
+    const progressBox = document.getElementById('scanProgressBox');
+    document.getElementById('scanUrl').textContent = url;
+    progressBox.classList.add('show');
+    progressBox.classList.remove('paused');
+    
+    // Reset pause state
+    scanPaused = false;
+    updatePauseButton();
+
+    // Clear any existing status check
+    if (window.currentStatusCheck) {
+        clearInterval(window.currentStatusCheck);
+    }
+
+    fetch('/scan', {
+        method: 'POST',
+        headers: addCsrfHeader({
+            'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({ url, checks })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.scan_id) {
+            currentScanId = data.scan_id;
+            pollStatus(data.scan_id);
+        } else {
+            showError(data.error || 'Failed to start scan');
+            progressBox.classList.remove('show');
+        }
+    })
+    .catch(error => {
+        showError('Error starting scan: ' + error.message);
+        progressBox.classList.remove('show');
+    });
+}
+
+function toggleScanPause() {
+    if (!currentScanId) return;
+
+    fetch(`/scan/${currentScanId}/toggle_pause`, {
+        method: 'POST',
+        headers: addCsrfHeader({
+            'Content-Type': 'application/json'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            scanPaused = data.status === 'paused';
+            updatePauseButton();
+            showToast(
+                'Scan Status', 
+                `Scan ${scanPaused ? 'paused' : 'resumed'}`, 
+                scanPaused ? 'warning' : 'info'
+            );
+        } else {
+            showError(data.message);
+        }
+    })
+    .catch(error => showError('Error toggling scan state'));
+}
+
+function updatePauseButton() {
+    const btn = document.getElementById('pauseButton');
+    const icon = btn.querySelector('i');
+    
+    if (scanPaused) {
+        icon.classList.remove('fa-pause');
+        icon.classList.add('fa-play');
+        btn.title = 'Resume Scan';
+    } else {
+        icon.classList.remove('fa-play');
+        icon.classList.add('fa-pause');
+        btn.title = 'Pause Scan';
+    }
+}
+
+function updateProgress(data) {
+    // Update pause state if status changed
+    if (data.status === 'paused' && !scanPaused) {
+        scanPaused = true;
+        updatePauseButton();
+    } else if (data.status === 'running' && scanPaused) {
+        scanPaused = false;
+        updatePauseButton();
+    }
+
+    const progressBar = document.querySelector('.progress-bar');
+    const currentStage = document.getElementById('currentStage');
+    const scanStats = document.getElementById('scanStats');
+
+    // Update progress bar
+    const progress = data.progress || 0;
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute('aria-valuenow', progress);
+
+    // Update stage
+    if (data.current_stage) {
+        currentStage.textContent = data.current_stage;
+    }
+
+    // Update stats
+    if (data.stats) {
+        const completedModules = data.stats.modules_completed || [];
+        scanStats.innerHTML = `
+            <div>Completed: ${completedModules.length}/${data.stats.total_modules}</div>
+            <div>Found: ${data.stats.vulnerabilities_found} vulnerabilities</div>
+        `;
+    }
+}
+
+function minimizeScan() {
+    const progressElement = document.getElementById('scanProgress');
+    progressElement.classList.toggle('minimized');
+    const btn = progressElement.querySelector('.close-btn i');
+    btn.classList.toggle('fa-minus');
+    btn.classList.toggle('fa-plus');
+}
+
+function displayResults(data) {
+    const progressBox = document.getElementById('scanProgressBox');
+    
+    // Show completion in progress box
+    document.getElementById('currentStage').textContent = 'Scan completed!';
+    document.getElementById('scanStats').innerHTML = `
+        Found ${data.vulnerabilities.length} vulnerabilities
+        <br>
+        <a href="/reports" class="text-primary">View full report</a>
+    `;
+    
+    // Show toast notification
+    showSuccess(`Scan completed! Found ${data.vulnerabilities.length} vulnerabilities.`);
+    
+    // Auto-close progress box after delay
+    setTimeout(() => {
+        progressBox.classList.remove('show');
+    }, 5000);
+}
+
+function showError(message) {
+    const resultsSection = document.getElementById('scanResults');
+    const progressSection = document.getElementById('scanProgress');
+
+    progressSection.style.display = 'none';
+    resultsSection.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fa fa-exclamation-circle"></i> ${message}
+        </div>
+    `;
+}
+
+function getSeverityClass(severity) {
+    switch (severity.toLowerCase()) {
+        case 'high': return 'danger';
+        case 'medium': return 'warning';
+        case 'low': return 'info';
+        default: return 'secondary';
+    }
+}
+
+function toggleScanBox() {
+    const box = document.getElementById('scanProgressBox');
+    const btn = box.querySelector('.minimize-btn i');
+    box.classList.toggle('minimized');
+    btn.classList.toggle('fa-minus');
+    btn.classList.toggle('fa-plus');
+}
+
+function closeScanBox() {
+    document.getElementById('scanProgressBox').classList.remove('show');
+}
+
+function pollStatus(scanId) {
+    const statusCheck = setInterval(() => {
+        fetch(`/status/${scanId}`)
+            .then(response => response.json())
+            .then(data => {
+                updateProgress(data);
+                
+                if (data.status === 'completed') {
+                    clearInterval(statusCheck);
+                    displayResults(data);
+                } else if (data.status === 'error') {
+                    clearInterval(statusCheck);
+                    showError(data.error || 'An error occurred during the scan');
+                } else if (data.status === 'paused') {
+                    // Handle paused state
+                    const progressBox = document.getElementById('scanProgressBox');
+                    progressBox.classList.add('paused');
+                    document.getElementById('currentStage').textContent = 'Scan Paused';
+                } else {
+                    // Remove paused state if scan is running
+                    const progressBox = document.getElementById('scanProgressBox');
+                    progressBox.classList.remove('paused');
+                }
+            })
+            .catch(error => {
+                clearInterval(statusCheck);
+                showError('Error checking scan status: ' + error.message);
+            });
+    }, 1000); // Poll every second
+
+    // Store interval ID to clear it if needed
+    window.currentStatusCheck = statusCheck;
+}
+
+// Add this function to handle scan cancellation
+function cancelScan() {
+    if (window.currentStatusCheck) {
+        clearInterval(window.currentStatusCheck);
+    }
+    const progressBox = document.getElementById('scanProgressBox');
+    progressBox.classList.remove('show');
+    showToast('Scan Cancelled', 'The scan has been cancelled.', 'warning');
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">Scan Report</h3>
+                    <a href="{{ url_for('view_reports') }}" class="btn btn-outline-primary">
+                        <i class="fa fa-arrow-left"></i> Back to Reports
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Scan Details -->
+                    <div class="scan-details mb-4">
+                        <h4 class="mb-3">Scan Details</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>URL:</strong> {{ report.url }}</p>
+                                <p><strong>Scan Date:</strong> {{ report.timestamp }}</p>
+                                <p>
+                                    <strong>Scan Type:</strong> 
+                                    <span class="badge bg-info">{{ report.scan_type }}</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>Status:</strong>
+                                    <span class="badge {% if report.status == 'completed' %}bg-success{% elif report.status == 'running' %}bg-primary{% else %}bg-danger{% endif %}">
+                                        {{ report.status|title }}
+                                    </span>
+                                </p>
+                                <p><strong>Duration:</strong> {{ report.stats.duration }} seconds</p>
+                                <p>
+                                    <strong>Enabled Checks:</strong><br>
+                                    {% for check in report.enabled_checks %}
+                                        <span class="badge bg-secondary me-1">{{ check|upper }}</span>
+                                    {% endfor %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scan Statistics -->
+                    <div class="scan-stats mb-4">
+                        <h4 class="mb-3">Statistics</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="mb-0">{{ report.vulnerabilities|length }}</h5>
+                                        <small class="text-muted">Vulnerabilities Found</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="mb-0">{{ report.stats.modules_completed|length }}/{{ report.stats.total_modules }}</h5>
+                                        <small class="text-muted">Modules Completed</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h5 class="mb-0">{{ report.stats.errors|length }}</h5>
+                                        <small class="text-muted">Errors</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Module Progress -->
+                    <div class="module-progress mb-4">
+                        <h4 class="mb-3">Module Progress</h4>
+                        <div class="modules-container">
+                            {% for check in report.enabled_checks %}
+                            <div class="module-card" data-module="{{ check }}">
+                                <div class="module-header">
+                                    <span class="module-name">{{ check|upper }}</span>
+                                    <span class="module-status">Pending</span>
+                                </div>
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Scan Logs -->
+                    <div class="scan-logs mb-4">
+                        <h4 class="mb-3">
+                            Traffic Log
+                            <small class="text-muted">(Real-time)</small>
+                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="toggleAutoScroll()">
+                                <i class="fa fa-scroll"></i> Auto-scroll
+                            </button>
+                        </h4>
+                        <div class="logs-container bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;" id="logsContainer">
+                            <div id="logEntries">
+                                <!-- Traffic logs will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vulnerabilities -->
+                    <div class="vulnerabilities">
+                        <h4 class="mb-3">Vulnerabilities</h4>
+                        {% if report.vulnerabilities %}
+                            {% for vuln in report.vulnerabilities %}
+                            <div class="vulnerability-card p-3 mb-3 border-start border-4 vulnerability-{{ vuln.severity|lower }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="mb-2">{{ vuln.description }}</h5>
+                                        <div class="text-muted small">
+                                            <span class="badge bg-{{ vuln.severity|lower }} me-2">{{ vuln.severity }}</span>
+                                            <span><i class="fa fa-clock-o"></i> {{ vuln.timestamp }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fa fa-info-circle"></i> No vulnerabilities were found in this scan.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Errors -->
+                    {% if report.stats.errors %}
+                    <div class="scan-errors mt-4">
+                        <h4 class="mb-3">Errors</h4>
+                        {% for error in report.stats.errors %}
+                        <div class="alert alert-danger">
+                            <i class="fa fa-exclamation-circle"></i> {{ error }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoScroll = true;
+let lastLogCount = 0;
+
+function toggleAutoScroll() {
+    autoScroll = !autoScroll;
+    const btn = document.querySelector('.scan-logs button');
+    btn.classList.toggle('btn-outline-secondary');
+    btn.classList.toggle('btn-secondary');
+}
+
+function updateLogs(logs) {
+    const container = document.getElementById('logEntries');
+    
+    // Filter only traffic logs
+    const trafficLogs = logs.filter(log => log.level === 'TRAFFIC');
+    
+    // Only update if we have new logs
+    if (trafficLogs.length > lastLogCount) {
+        // Add new logs
+        for (let i = lastLogCount; i < trafficLogs.length; i++) {
+            const log = trafficLogs[i];
+            const logEntry = document.createElement('div');
+            
+            // Parse log message
+            const isRequest = log.message.startsWith('REQUEST');
+            const isResponse = log.message.startsWith('RESPONSE');
+            
+            if (isRequest || isResponse) {
+                logEntry.className = `log-entry ${isRequest ? 'request' : 'response'}`;
+                
+                // Parse message parts
+                const parts = log.message.match(isRequest ? 
+                    /REQUEST \[(.*?)\] (.*)/ :
+                    /RESPONSE \[(.*?)\] (.*?) \((.*?)\)/);
+                
+                if (parts) {
+                    const [_, methodOrStatus, url, duration] = parts;
+                    
+                    // Create log header
+                    const header = document.createElement('div');
+                    header.className = 'log-header';
+                    header.innerHTML = `
+                        <div>
+                            ${isRequest ? 
+                                `<span class="method">${methodOrStatus}</span>` :
+                                `<span class="status ${parseInt(methodOrStatus) < 400 ? 'success' : 'error'}">${methodOrStatus}</span>`
+                            }
+                            <span class="url ms-2">${escapeHtml(url)}</span>
+                        </div>
+                        <div>
+                            <span class="timestamp">${log.timestamp}</span>
+                            ${duration ? `<span class="duration ms-2">${duration}</span>` : ''}
+                        </div>
+                    `;
+                    logEntry.appendChild(header);
+                }
+                
+                // Add content if it's headers or body
+                if (log.message.includes('HEADERS:') || log.message.includes('BODY:')) {
+                    const content = document.createElement('div');
+                    content.className = 'log-content';
+                    const [label, data] = log.message.split(':');
+                    content.innerHTML = `
+                        <pre><code>${escapeHtml(data.trim())}</code></pre>
+                    `;
+                    logEntry.appendChild(content);
+                }
+                
+                container.appendChild(logEntry);
+            }
+        }
+        
+        lastLogCount = trafficLogs.length;
+        
+        // Auto-scroll to bottom if enabled
+        if (autoScroll) {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+    }
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Poll for updates if scan is running
+{% if report.status == 'running' %}
+const logsPollInterval = setInterval(() => {
+    fetch(`/scan/${report.scan_id}/logs`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.logs) {
+                updateLogs(data.logs);
+            }
+            if (data.status === 'completed' || data.status === 'error') {
+                clearInterval(logsPollInterval);
+            }
+        })
+        .catch(error => console.error('Error polling logs:', error));
+}, 1000);
+{% endif %}
+
+function updateVulnerabilities(vulnerabilities) {
+    const container = document.querySelector('.vulnerabilities');
+    const existingVulns = new Set(Array.from(container.querySelectorAll('.vulnerability-card')).map(card => 
+        card.getAttribute('data-vuln-id')
+    ));
+    
+    vulnerabilities.forEach(vuln => {
+        // Create unique ID for vulnerability
+        const vulnId = `${vuln.type}-${vuln.description}-${vuln.timestamp}`.replace(/[^a-z0-9]/gi, '-');
+        
+        // Only add if it's a new vulnerability
+        if (!existingVulns.has(vulnId)) {
+            const card = document.createElement('div');
+            card.className = `vulnerability-card p-3 mb-3 border-start border-4 vulnerability-${vuln.severity.toLowerCase()}`;
+            card.setAttribute('data-vuln-id', vulnId);
+            
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="mb-2">${escapeHtml(vuln.description)}</h5>
+                        <div class="text-muted small">
+                            <span class="badge bg-${vuln.severity.toLowerCase()} me-2">${vuln.severity}</span>
+                            <span><i class="fa fa-clock-o"></i> ${vuln.timestamp}</span>
+                            ${vuln.type ? `<span class="ms-2 badge bg-secondary">${vuln.type}</span>` : ''}
+                        </div>
+                        ${vuln.details ? `
+                        <div class="mt-2 text-muted">
+                            <pre class="vulnerability-details">${escapeHtml(vuln.details)}</pre>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Add animation class
+            card.classList.add('new-vulnerability');
+            
+            // Add to container
+            const noVulnsMessage = container.querySelector('.alert-info');
+            if (noVulnsMessage) {
+                noVulnsMessage.remove();
+            }
+            container.appendChild(card);
+            
+            // Update stats
+            updateStats();
+        }
+    });
+}
+
+function updateStats() {
+    const vulnCards = document.querySelectorAll('.vulnerability-card');
+    const statsContainer = document.querySelector('.scan-stats');
+    
+    const stats = {
+        total: vulnCards.length,
+        high: document.querySelectorAll('.vulnerability-high').length,
+        medium: document.querySelectorAll('.vulnerability-medium').length,
+        low: document.querySelectorAll('.vulnerability-low').length
+    };
+    
+    // Update stats cards
+    document.querySelector('.vulnerabilities-found').textContent = stats.total;
+}
+
+// Update the polling function
+function pollStatus() {
+    fetch(`/scan/${report.scan_id}/status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.vulnerabilities) {
+                updateVulnerabilities(data.vulnerabilities);
+            }
+            updateModuleProgress(data);
+        })
+        .catch(error => console.error('Error polling status:', error));
+}
+
+// Start polling if scan is running
+{% if report.status == 'running' %}
+const statusPollInterval = setInterval(() => {
+    pollStatus();
+}, 1000);
+{% endif %}
+
+function updateModuleProgress(data) {
+    if (!data.stats || !data.stats.modules_completed) return;
+    
+    const completedModules = new Set(data.stats.modules_completed);
+    const currentModule = data.current_stage?.match(/Running (\w+) scanner/)?.[1];
+    
+    document.querySelectorAll('.module-card').forEach(card => {
+        const moduleName = card.dataset.module;
+        const statusElement = card.querySelector('.module-status');
+        const progressBar = card.querySelector('.progress-bar');
+        
+        if (completedModules.has(moduleName)) {
+            // Module completed
+            statusElement.textContent = 'Completed';
+            statusElement.className = 'module-status completed';
+            progressBar.style.width = '100%';
+            card.classList.add('completed');
+        } else if (currentModule === moduleName) {
+            // Module running
+            statusElement.textContent = 'Running';
+            statusElement.className = 'module-status running';
+            progressBar.style.width = '50%';
+            card.classList.add('active');
+        } else if (!completedModules.has(moduleName)) {
+            // Module pending
+            statusElement.textContent = 'Pending';
+            statusElement.className = 'module-status pending';
+            progressBar.style.width = '0%';
+            card.classList.remove('active', 'completed');
+        }
+    });
+}
+</script>
+{% endblock %} 
