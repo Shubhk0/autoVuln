@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Security Scanner</h2>
+        </div>
+        <div class="card-body">
+            <form id="scanForm" method="POST" action="{{ url_for('start_scan') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                
+                <div class="mb-3">
+                    <label for="url" class="form-label">Target URL</label>
+                    <input type="url" class="form-control" id="url" name="url" required 
+                           placeholder="https://example.com">
+                    <div class="form-text">Enter the full URL of the website you want to scan</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Select Security Checks</label>
+                    <div class="row g-3">
+                        <!-- XSS Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="xss" id="xssCheck" checked>
+                                <label class="form-check-label" for="xssCheck">
+                                    Cross-Site Scripting (XSS)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- SQL Injection Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="sql" id="sqlCheck" checked>
+                                <label class="form-check-label" for="sqlCheck">
+                                    SQL Injection
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- CSRF Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="csrf" id="csrfCheck" checked>
+                                <label class="form-check-label" for="csrfCheck">
+                                    Cross-Site Request Forgery
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Broken Access Control Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="access" id="accessCheck" checked>
+                                <label class="form-check-label" for="accessCheck">
+                                    Broken Access Control
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Cryptographic Failures Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="crypto" id="cryptoCheck" checked>
+                                <label class="form-check-label" for="cryptoCheck">
+                                    Cryptographic Failures
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Injection Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="injection" id="injectionCheck" checked>
+                                <label class="form-check-label" for="injectionCheck">
+                                    Injection Vulnerabilities
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- SSL Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="ssl" id="sslCheck" checked>
+                                <label class="form-check-label" for="sslCheck">
+                                    SSL/TLS Configuration
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Clickjacking Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="clickjacking" id="clickjackingCheck" checked>
+                                <label class="form-check-label" for="clickjackingCheck">
+                                    Clickjacking Protection
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Security Headers Scanner -->
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="checks" value="headers" id="headersCheck" checked>
+                                <label class="form-check-label" for="headersCheck">
+                                    Security Headers
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary" id="startScanBtn">
+                        <i class="fas fa-shield-alt me-2"></i>Start Scan
+                    </button>
+                </div>
+            </form>
+
+            <!-- Progress Modal -->
+            <div class="modal fade" id="scanProgressModal" tabindex="-1" aria-labelledby="scanProgressModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="scanProgressModalLabel">Scan in Progress</h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="scanProgressBar"></div>
+                            </div>
+                            <div id="scanStatus" class="text-center">Initializing scan...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('scanForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show progress modal
+    var progressModal = new bootstrap.Modal(document.getElementById('scanProgressModal'));
+    progressModal.show();
+    
+    // Get form data
+    var formData = new FormData(this);
+    var checks = [];
+    formData.getAll('checks').forEach(function(check) {
+        checks.push(check);
+    });
+    
+    // Start scan
+    fetch('{{ url_for("start_scan") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify({
+            url: formData.get('url'),
+            checks: checks
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.scan_id) {
+            // Poll scan status
+            pollScanStatus(data.scan_id, progressModal);
+        } else {
+            alert('Error starting scan: ' + data.error);
+            progressModal.hide();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error starting scan');
+        progressModal.hide();
+    });
+});
+
+function pollScanStatus(scanId, modal) {
+    let progressBar = document.getElementById('scanProgressBar');
+    let statusText = document.getElementById('scanStatus');
+    
+    function checkStatus() {
+        fetch(`/scan/${scanId}/status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'completed') {
+                progressBar.style.width = '100%';
+                statusText.textContent = 'Scan completed!';
+                setTimeout(() => {
+                    modal.hide();
+                    window.location.href = '{{ url_for("reports") }}';
+                }, 1000);
+            } else if (data.status === 'error') {
+                progressBar.style.width = '100%';
+                progressBar.classList.remove('bg-primary');
+                progressBar.classList.add('bg-danger');
+                statusText.textContent = 'Error: ' + data.error_message;
+                setTimeout(() => modal.hide(), 3000);
+            } else {
+                progressBar.style.width = data.progress + '%';
+                statusText.textContent = data.current_scanner ? 
+                    'Running ' + data.current_scanner + ' scan...' : 
+                    'Scanning in progress...';
+                setTimeout(checkStatus, 1000);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            statusText.textContent = 'Error checking scan status';
+            setTimeout(() => modal.hide(), 3000);
+        });
+    }
+    
+    checkStatus();
+}
+</script>
+{% endblock %}

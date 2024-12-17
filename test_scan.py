@@ -7,16 +7,37 @@ from datetime import datetime
 import urllib.parse
 import os
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f'scan_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+# ANSI color codes
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def format_severity(severity):
+    """Format severity with color"""
+    if severity == 'Critical':
+        return f"{Colors.RED}{severity}{Colors.ENDC}"
+    elif severity == 'High':
+        return f"{Colors.YELLOW}{severity}{Colors.ENDC}"
+    else:
+        return f"{Colors.CYAN}{severity}{Colors.ENDC}"
+
+def print_section_header(title):
+    """Print a formatted section header"""
+    print(f"\n{Colors.BOLD}{Colors.BLUE}{'=' * 50}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.BLUE}{title}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.BLUE}{'=' * 50}{Colors.ENDC}")
+
+def print_subsection_header(title):
+    """Print a formatted subsection header"""
+    print(f"\n{Colors.CYAN}{title}{Colors.ENDC}")
+    print(f"{Colors.CYAN}{'-' * 30}{Colors.ENDC}")
 
 def validate_url(url):
     """Validate URL format and accessibility"""
@@ -69,13 +90,14 @@ async def scan_site(url):
             'sql': True,
             'csrf': True,
             'headers': True,
-            'ssl': True
+            'ssl': True,
+            'clickjacking': True
         }
         
         # Run scan with timeout
         try:
             results = await asyncio.wait_for(
-                scanner.scan(checks),
+                scanner.run_scan(checks),  
                 timeout=300  # 5 minutes timeout
             )
         except asyncio.TimeoutError:
@@ -96,50 +118,54 @@ async def scan_site(url):
         except Exception as e:
             logger.error(f"Error saving results: {str(e)}")
 
-        # Print summary
-        try:
-            logger.info(f"\nScan Summary for {url}:")
-            logger.info("=" * 50)
+        # Print scan summary
+        print_section_header(f"Scan Summary for {url}")
+        print(f"{Colors.BOLD}Status:{Colors.ENDC} {results.get('status', 'unknown')}")
+        print(f"{Colors.BOLD}Start Time:{Colors.ENDC} {results.get('start_time')}")
+        print(f"{Colors.BOLD}End Time:{Colors.ENDC} {results.get('end_time')}")
+        
+        print_subsection_header("Metrics")
+        metrics = results.get('metrics', {})
+        print(f"{Colors.BOLD}Total Requests:{Colors.ENDC} {metrics.get('requests_made', 0)}")
+        print(f"{Colors.BOLD}Failed Requests:{Colors.ENDC} {metrics.get('requests_failed', 0)}")
+        print(f"{Colors.BOLD}Vulnerabilities Found:{Colors.ENDC} {metrics.get('vulnerabilities_found', 0)}")
+        
+        vulnerabilities = results.get('vulnerabilities', [])
+        if vulnerabilities:
+            print_section_header("Vulnerabilities Found")
             
-            stats = results.get('stats', {})
-            logger.info(f"Total URLs scanned: {stats.get('total_urls', 0)}")
-            logger.info(f"Vulnerabilities found: {stats.get('total_vulnerabilities', 0)}")
-            logger.info(f"Unique vulnerabilities: {stats.get('unique_vulnerabilities', 0)}")
+            # Group vulnerabilities by type
+            vuln_types = {}
+            for vuln in vulnerabilities:
+                vuln_type = vuln.get('type')
+                if vuln_type not in vuln_types:
+                    vuln_types[vuln_type] = []
+                vuln_types[vuln_type].append(vuln)
             
-            # Print vulnerabilities by severity
-            severity_counts = stats.get('severity_counts', {})
-            if severity_counts:
-                logger.info("\nVulnerabilities by Severity:")
-                for severity, count in severity_counts.items():
-                    logger.info(f"{severity}: {count}")
-            
-            # Print detailed findings
-            vulnerabilities = results.get('vulnerabilities', [])
-            if vulnerabilities:
-                logger.info("\nDetailed Findings:")
-                logger.info("=" * 50)
-                for vuln in vulnerabilities:
-                    logger.info(f"\nType: {vuln.get('type', 'Unknown')}")
-                    logger.info(f"Severity: {vuln.get('severity', 'Unknown')}")
-                    logger.info(f"Description: {vuln.get('description', 'No description')}")
-                    if 'details' in vuln:
-                        logger.info("Details:")
-                        for key, value in vuln['details'].items():
-                            logger.info(f"  {key}: {value}")
-            else:
-                logger.info("No vulnerabilities found")
-
-        except Exception as e:
-            logger.error(f"Error printing results: {str(e)}")
+            # Print each vulnerability type
+            for vuln_type, vulns in vuln_types.items():
+                print_subsection_header(f"{vuln_type} Vulnerabilities")
+                for vuln in vulns:
+                    print(f"\n{Colors.BOLD}Type:{Colors.ENDC} {vuln.get('type')}")
+                    print(f"{Colors.BOLD}Severity:{Colors.ENDC} {format_severity(vuln.get('severity', 'Unknown'))}")
+                    print(f"{Colors.BOLD}Description:{Colors.ENDC} {vuln.get('description', 'No description')}")
+                    
+                    # Format evidence based on type
+                    if 'evidence' in vuln:
+                        print(f"{Colors.BOLD}Evidence:{Colors.ENDC}")
+                        for key, value in vuln['evidence'].items():
+                            print(f"  - {key}: {value}")
+        else:
+            print(f"\n{Colors.GREEN}No vulnerabilities found{Colors.ENDC}")
             
     except Exception as e:
         logger.error(f"Error scanning {url}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
     finally:
         if scanner:
-            try:
-                await scanner.cleanup()
-            except Exception as e:
-                logger.error(f"Error during cleanup: {str(e)}")
+            await scanner.close_session()
+            logger.info("Session cleanup completed")
 
 async def run_test_scan():
     """Run test scans on multiple sites"""
@@ -153,6 +179,17 @@ async def run_test_scan():
 
 def main():
     try:
+        # Configure logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(f'scan_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+        logger = logging.getLogger(__name__)
+        
         asyncio.run(run_test_scan())
     except KeyboardInterrupt:
         logger.info("Scan interrupted by user")
@@ -160,4 +197,4 @@ def main():
         logger.error(f"Fatal error: {str(e)}")
 
 if __name__ == "__main__":
-    main() 
+    main()

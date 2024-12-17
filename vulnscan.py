@@ -7,6 +7,7 @@ This module provides a comprehensive vulnerability scanning solution with suppor
 - CSRF (Cross-Site Request Forgery)
 - Security Headers
 - SSL/TLS Configuration
+- Broken Access Control
 
 Usage:
     scanner = VulnerabilityScanner(url="https://example.com")
@@ -14,29 +15,31 @@ Usage:
         results = await scanner.scan()
 """
 
-from typing import Dict, List, Optional, Set, Any, Tuple
-from modules.xss_scanner import XSSScanner
-from modules.sql_scanner import SQLScanner
-from modules.csrf_scanner import CSRFScanner
-from modules.header_scanner import HeaderScanner
-from modules.ssl_scanner import SSLScanner
+from typing import Dict, List, Optional, Any, Tuple
 import aiohttp
 import asyncio
-from datetime import datetime
 import logging
 from colorama import Fore, Style, init
 import sys
 import traceback
 import urllib.parse
-import json
 from bs4 import BeautifulSoup
 import uuid
-from core.logging_manager import LoggingManager
 import time
 import os
 import psutil
 import threading
 import random
+import atexit
+import re
+from aiohttp import ClientSession, ClientError
+import ssl
+import socket
+from urllib.parse import urlparse
+import json
+from datetime import datetime as dt
+from datetime import timezone
+from models import db
 
 # Initialize colorama for cross-platform color support
 init()
@@ -53,110 +56,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class SessionManager:
-    """
-    Manages HTTP session pooling and lifecycle
-    
-    Attributes:
-        _max_pool_size: Maximum number of concurrent sessions
-        _connection_timeout: Timeout for session acquisition
-    """
     def __init__(self):
-        self._session = None
-        self._connector = None
+        self.session = None
         self._lock = asyncio.Lock()
-        self._active = False
-        self._ref_count = 0
-        self.logger = logging.getLogger('SessionManager')
-        self._initialized = False
-        self._max_connections = 20  # Add connection pool limit
-        self._connection_timeout = 30  # Add timeout
-        self._connection_queue = asyncio.Queue()  # Add connection queue
-        self._session_pool = []
-        self._max_pool_size = 20
-
-    async def ensure_initialized(self):
-        """Ensure session is properly initialized with connection pooling"""
-        if not self._initialized:
-            try:
-                # Initialize connection pool
-                for _ in range(self._max_pool_size):
-                    connector = aiohttp.TCPConnector(
-                        limit=10,
-                        ttl_dns_cache=300,
-                        use_dns_cache=True,
-                        force_close=True,
-                        enable_cleanup_closed=True,
-                        ssl=False
-                    )
-                    
-                    session = aiohttp.ClientSession(
-                        connector=connector,
-                        timeout=aiohttp.ClientTimeout(total=30),
-                        headers=self.config['headers']
-                    )
-                    self._session_pool.append(session)
-                    await self._connection_queue.put(session)
-                
-                self._initialized = True
-                return True
-            except Exception as e:
-                self.logger.error(f"Session initialization error: {str(e)}")
-                return False
-        return True
-
+        self.logger = logging.getLogger("vulnscan")
+        
+    async def __aenter__(self):
+        if not self.session:
+            self.session = aiohttp.ClientSession()
+        return self.session
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+            self.session = None
+            
     async def get_session(self):
-        """Get session from pool with improved error handling"""
         async with self._lock:
-            try:
-                if not await self.ensure_initialized():
-                    return None
-                
-                # Try to get session from pool with timeout
-                try:
-                    session = await asyncio.wait_for(
-                        self._connection_queue.get(),
-                        timeout=self._connection_timeout
-                    )
-                    
-                    # Verify session is still valid
-                    if session.closed:
-                        # Create new session if closed
-                        session = await self._create_new_session()
-                        
-                    return session
-                    
-                except asyncio.TimeoutError:
-                    self.logger.warning("Session pool exhausted, creating new session")
-                    return await self._create_new_session()
-                    
-            except Exception as e:
-                self.logger.error(f"Error getting session: {str(e)}")
-                return None
-
-    async def release(self):
-        """Return session to pool"""
-        async with self._lock:
-            try:
-                if self._session and not self._session.closed:
-                    await self._connection_queue.put(self._session)
-            except Exception as e:
-                self.logger.error(f"Error releasing session: {str(e)}")
-
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+            return self.session
+            
     async def cleanup(self):
-        """Cleanup session and connector"""
-        async with self._lock:
-            try:
-                if self._session and not self._session.closed:
-                    await self._session.close()
-                if self._connector and not self._connector.closed:
-                    await self._connector.close()
-            except Exception as e:
-                logging.error(f"Error during cleanup: {str(e)}")
-            finally:
-                self._session = None
-                self._connector = None
-                self._active = False
-                self._ref_count = 0
+        """Cleanup session resources"""
+        if self.session and not self.session.closed:
+            await self.session.close()
+            self.session = None
+        self.logger.info("Cleanup completed")
 
 class RateLimiter:
     def __init__(self, requests_per_second, burst_size):
@@ -191,704 +117,464 @@ class RateLimiter:
             finally:
                 self._waiting -= 1
 
-class VulnerabilityScanner:
-    def __init__(self, url):
-        try:
-            # Initialize logging
-            self.log_manager = LoggingManager()
-            self.logger = self.log_manager.get_logger('scanner')
-            
-            # Initialize log colors
-            self.log_colors = {
-                'INFO': 'blue',
-                'WARNING': 'yellow',
-                'ERROR': 'red',
-                'SUCCESS': 'green',
-                'DEBUG': 'gray'
-            }
-            
-            self.logger.info(f"Initializing scanner for {url}")
-            
-            # Validate URL
-            self.url = self.validate_and_clean_url(url)
-            
-            # Initialize components
-            self.session_manager = SessionManager()
-            self.scanners = {}
-            self.seen_urls = set()
-            self.scan_logs = []
-            self._initialized = False
-            self._scan_id = str(uuid.uuid4())
-            self._stop_event = asyncio.Event()
-            
-            # Initialize configuration
-            self.init_config()
-            
-            self.rate_limiter = RateLimiter(
-                requests_per_second=10,
-                burst_size=20
-            )
-            
-            self.metrics = {
-                'requests_made': 0,
-                'requests_failed': 0,
-                'vulnerabilities_found': 0,
-                'scan_duration': 0,
-                'errors': [],
-                'performance_metrics': {}
-            }
-            
-        except Exception as e:
-            if hasattr(self, 'logger'):
-                self.logger.error(f"Scanner initialization error: {str(e)}", exc_info=True)
-            else:
-                print(f"Scanner initialization error: {str(e)}")
-            raise
-
-    def init_config(self):
-        """Optimized scanner configuration"""
-        self.config = {
-            'headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Connection': 'keep-alive'
-            },
-            'timeout': 15,  # Reduced from 30
-            'max_redirects': 3,  # Reduced from 5
-            'verify_ssl': False,
-            'max_retries': 2,  # Reduced from 3
-            'retry_delay': 0.5,  # Reduced from 1
-            'concurrent_scans': 10,  # Increased from 5
-            'max_depth': 2,  # Reduced from 3
-            'max_urls_per_scan': 50,  # Reduced from 100
-            'scan_timeout': 180,  # Reduced from 300
-            'max_concurrent_requests': 20,  # Increased from 10
-            'request_timeout': 15,  # Reduced from 30
-            'connect_timeout': 5,  # Reduced from 10
-            'chunk_size': 10,  # Increased from 5
-            'crawl_scope': 'domain',
-            'exclude_paths': ['/logout', '/signout', '/delete', '/static', '/assets', '/images'],
-            'exclude_extensions': ['.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg']
-        }
-
-    def validate_and_clean_url(self, url):
-        """Validate and clean URL"""
-        try:
-            # Remove whitespace and convert to lowercase
-            url = url.strip().lower()
-            
-            # Add scheme if missing
-            if not url.startswith(('http://', 'https://')):
-                url = 'http://' + url
-                
-            # Parse and validate URL
-            parsed = urllib.parse.urlparse(url)
-            if not all([parsed.scheme, parsed.netloc]):
-                raise ValueError("Invalid URL format")
-                
-            # Reconstruct URL
-            return urllib.parse.urlunparse((
-                parsed.scheme,
-                parsed.netloc,
-                parsed.path or '/',
-                parsed.params,
-                parsed.query,
-                ''  # Remove fragment
-            ))
-            
-        except Exception as e:
-            raise ValueError(f"URL validation error: {str(e)}")
-
-    async def initialize(self):
-        """Initialize scanner with error handling and recovery"""
-        if self._initialized:
-            return True
-
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                session = await self.get_session_with_retry()
-                if not session:
-                    raise Exception("Failed to create session")
-
-                self.scanners = await self.initialize_scanners(session)
-                self._initialized = True
-                self.logger.info("Scanner initialized successfully")
-                return True
-                
-            except Exception as e:
-                self.logger.error(f"Initialization attempt {attempt + 1} failed: {str(e)}")
-                await asyncio.sleep(1)  # Add backoff delay
-                await self.cleanup()
-                
-        return False
-
-    async def get_session_with_retry(self):
-        """Get session with retry logic"""
-        for attempt in range(3):
-            try:
-                session = await self.session_manager.get_session()
-                if session:
-                    return session
-                if attempt < 2:
-                    await asyncio.sleep(1)
-            except Exception as e:
-                self.logger.error(f"Session creation attempt {attempt + 1} failed: {str(e)}")
-        return None
-
-    async def initialize_scanners(self, session):
-        """Initialize scanner modules"""
-        scanner_config = {
-            'max_concurrent_requests': 10,
-            'request_timeout': 30,
-            'max_retries': 3,
-            'retry_delay': 1,
-            'headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Connection': 'keep-alive'
-            },
-            'scan_id': self._scan_id
-        }
+class BaseScanner:
+    """Base scanner class with common functionality"""
+    
+    def __init__(self, url, session=None):
+        self.url = url if url.startswith(('http://', 'https://')) else f'http://{url}'
+        self.session = session
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.vulnerabilities = []
+        self.requests_made = 0
+        self.max_retries = 3
+        self.retry_delay = 1
+        self.timeout = aiohttp.ClientTimeout(total=10)
         
-        return {
-            'xss': XSSScanner(session, scanner_config),
-            'sql': SQLScanner(session, scanner_config),
-            'csrf': CSRFScanner(session, scanner_config),
-            'headers': HeaderScanner(session, scanner_config),
-            'ssl': SSLScanner(session, scanner_config)
-        }
-
-    async def scan(self, checks=None):
-        """Optimized scan with concurrent execution"""
-        start_time = datetime.now()
-        try:
-            # Initialize scanner
-            if not await self.initialize():
-                raise Exception("Scanner initialization failed")
-
-            self.log("Starting security scan", "INFO")
-            results = []
-            scan_logs = []
+    async def make_request(self, url, method='GET', data=None, headers=None, verify_ssl=False):
+        """Make an HTTP request with retry logic"""
+        if not headers:
+            headers = {}
             
-            # Phase 1: Fast crawl with concurrency
+        for attempt in range(self.max_retries):
             try:
-                self.log("Phase 1: Crawling target", "INFO")
-                crawl_task = asyncio.create_task(self.crawl_site())
-                await asyncio.wait_for(crawl_task, timeout=60)  # 1 minute timeout for crawling
-                self.log(f"Found {len(self.seen_urls)} URLs", "INFO")
-            except Exception as e:
-                self.log(f"Crawling error: {str(e)}", "ERROR")
-                self.seen_urls = {self.url}
-
-            # Phase 2: Run scanners in specific order
-            if checks:
-                self.log("Phase 2: Running security checks", "INFO")
-                scanner_tasks = []
-
-                # Always run XSS scanner first
-                if checks.get('xss', False):
-                    scanner_tasks.append(self.run_scanner_with_timeout('xss'))
-
-                # Then run SQL scanner
-                if checks.get('sql', False):
-                    scanner_tasks.append(self.run_scanner_with_timeout('sql'))
-
-                # Run all scanners concurrently
-                scanner_results = await asyncio.gather(*scanner_tasks, return_exceptions=True)
-                
-                # Process results
-                for result in scanner_results:
-                    if isinstance(result, Exception):
-                        self.log(f"Scanner error: {str(result)}", "ERROR")
-                        continue
-                    if result:
-                        if result.get('vulnerabilities'):
-                            results.extend(result['vulnerabilities'])
-                        if result.get('logs'):
-                            scan_logs.extend(result['logs'])
-
-            # Process results efficiently
-            unique_results = self.deduplicate_vulnerabilities(results)
-            prioritized_results = self.prioritize_vulnerabilities(unique_results)
-            
-            scan_duration = (datetime.now() - start_time).total_seconds()
-            
-            return {
-                'scan_id': self._scan_id,
-                'url': self.url,
-                'vulnerabilities': prioritized_results,
-                'logs': scan_logs,
-                'stats': {
-                    'total_urls': len(self.seen_urls),
-                    'total_vulnerabilities': len(results),
-                    'unique_vulnerabilities': len(unique_results),
-                    'severity_counts': self.count_severities(prioritized_results),
-                    'scan_duration': scan_duration
-                },
-                'status': 'completed'
-            }
-
-        except Exception as e:
-            self.log(f"Scan error: {str(e)}", "ERROR")
-            return {
-                'scan_id': self._scan_id,
-                'url': self.url,
-                'error': str(e),
-                'logs': scan_logs,
-                'stats': {
-                    'scan_duration': (datetime.now() - start_time).total_seconds()
-                },
-                'status': 'error'
-            }
-        finally:
-            await self.cleanup()
-
-    async def run_nuclei_scan(self):
-        """Run Nuclei scan after standard checks"""
-        try:
-            self.log("Starting Nuclei scan", "INFO")
-            
-            # Create Nuclei scanner with current session
-            nuclei_scanner = NucleiScanner(self.session, {
-                **self.config,
-                'scan_id': self._scan_id,
-                'templates': [
-                    'cves',
-                    'vulnerabilities',
-                    'exposures',
-                    'misconfiguration'
-                ]
-            })
-
-            # Run Nuclei scan
-            result = await nuclei_scanner.scan(self.url)
-            
-            if result and result.get('vulnerabilities'):
-                self.log(f"Nuclei found {len(result['vulnerabilities'])} vulnerabilities", "INFO")
-            else:
-                self.log("Nuclei scan completed with no findings", "INFO")
-                
-            return result
-
-        except Exception as e:
-            self.log(f"Error in Nuclei scan: {str(e)}", "ERROR")
-            return None
-
-    async def run_scanner_with_timeout(self, check_type):
-        """Run scanner with timeout"""
-        try:
-            return await asyncio.wait_for(
-                self.run_scanner(check_type),
-                timeout=self.config['scan_timeout']
-            )
-        except asyncio.TimeoutError:
-            self.log(f"{check_type} scanner timed out", "WARNING")
-            return []
-
-    def deduplicate_vulnerabilities(self, vulnerabilities):
-        """Remove duplicate vulnerabilities"""
-        unique_vulns = []
-        seen = set()
-        
-        for vuln in vulnerabilities:
-            # Create a unique key based on relevant fields
-            key = f"{vuln['type']}:{vuln['description']}:{vuln.get('url', '')}"
-            if key not in seen:
-                seen.add(key)
-                unique_vulns.append(vuln)
-                
-        return unique_vulns
-
-    def prioritize_vulnerabilities(self, vulnerabilities):
-        """Prioritize vulnerabilities based on severity"""
-        severity_order = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Info': 4}
-        return sorted(
-            vulnerabilities,
-            key=lambda x: severity_order.get(x['severity'], 999)
-        )
-
-    async def crawl_site(self):
-        """Optimized concurrent crawling"""
-        try:
-            self.log("Starting site crawl", "INFO")
-            urls_to_scan = {self.url}
-            self.seen_urls = set()
-            
-            async def process_url(url):
-                if url in self.seen_urls:
-                    return set()
-                
-                try:
-                    response, content = await self.make_request(url)
-                    if not response or not content:
-                        return set()
-                    
-                    new_urls = set()
-                    soup = BeautifulSoup(content, 'html.parser')
-                    
-                    for link in soup.find_all('a', href=True):
-                        href = link['href']
-                        full_url = urllib.parse.urljoin(url, href)
-                        
-                        if (self.is_url_in_scope(full_url) and 
-                            full_url not in self.seen_urls and 
-                            len(self.seen_urls) < self.config['max_urls_per_scan']):
-                            new_urls.add(full_url)
-                    
-                    self.seen_urls.add(url)
-                    return new_urls
-                    
-                except Exception as e:
-                    self.log(f"Error crawling URL {url}: {str(e)}", "ERROR")
-                    return set()
-
-            while urls_to_scan and len(self.seen_urls) < self.config['max_urls_per_scan']:
-                # Process URLs in batches
-                batch = list(urls_to_scan)[:self.config['chunk_size']]
-                urls_to_scan = urls_to_scan - set(batch)
-                
-                # Process batch concurrently
-                tasks = [process_url(url) for url in batch]
-                results = await asyncio.gather(*tasks)
-                
-                # Add new URLs to scan queue
-                for new_urls in results:
-                    urls_to_scan.update(new_urls)
-                
-            self.log(f"Completed crawl, found {len(self.seen_urls)} URLs", "INFO")
-            
-        except Exception as e:
-            self.log(f"Error during crawl: {str(e)}", "ERROR")
-        finally:
-            # No need to call release() here as it's handled by make_request()
-            pass
-
-    def is_url_in_scope(self, url):
-        """Check if URL is in scan scope"""
-        try:
-            parsed_url = urllib.parse.urlparse(url)
-            parsed_base = urllib.parse.urlparse(self.url)
-            
-            # Check domain scope
-            if self.config['crawl_scope'] == 'domain':
-                if parsed_url.netloc != parsed_base.netloc:
-                    return False
-            
-            # Check file extensions
-            path = parsed_url.path.lower()
-            if any(path.endswith(ext) for ext in self.config['exclude_extensions']):
-                return False
-                
-            # Check excluded paths
-            if any(excluded in path for excluded in self.config['exclude_paths']):
-                return False
-                
-            return True
-            
-        except Exception:
-            return False
-
-    async def run_scanner(self, check_type):
-        """Run scanner and collect logs"""
-        try:
-            scanner = self.scanners[check_type]
-            result = await scanner.scan(self.url)
-            
-            # Collect scanner logs
-            if hasattr(scanner, 'scan_logs'):
-                self.scan_logs.extend(scanner.scan_logs)
-            
-            return result
-            
-        except Exception as e:
-            self.log(f"Error in {check_type} scanner: {str(e)}", 'ERROR')
-            raise
-        finally:
-            await self.session_manager.release()
-
-    async def batch_request(self, urls):
-        """Make concurrent requests in batches"""
-        results = []
-        for i in range(0, len(urls), self.config['chunk_size']):
-            chunk = urls[i:i + self.config['chunk_size']]
-            tasks = [self.make_request(url) for url in chunk]
-            chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
-            results.extend(chunk_results)
-        return results
-
-    async def make_request(self, url, method='GET', data=None, headers=None):
-        """Make request with improved error handling and retries"""
-        for attempt in range(self.config['max_retries']):
-            try:
-                # Wait for rate limiter
-                await self.rate_limiter.acquire()
-                
-                session = await self.session_manager.get_session()
-                if not session:
-                    self.logger.error("Failed to get session")
-                    await asyncio.sleep(self.config['retry_delay'])
-                    continue
-
-                # Update metrics
-                self.metrics['requests_made'] += 1
-
-                async with session.request(
+                async with self.session.request(
                     method, 
                     url, 
                     data=data, 
                     headers=headers,
-                    ssl=False,
-                    timeout=aiohttp.ClientTimeout(
-                        total=self.config['request_timeout'],
-                        connect=self.config['connect_timeout']
-                    ),
-                    allow_redirects=True,
-                    max_redirects=self.config['max_redirects']
+                    ssl=verify_ssl,
+                    timeout=self.timeout
                 ) as response:
+                    self.requests_made += 1
+                    content = await response.text()
+                    return content, response.headers, response.status
                     
-                    if response.status >= 400:
-                        self.metrics['requests_failed'] += 1
-                        self.logger.warning(f"Request failed with status {response.status}")
-                        if attempt < self.config['max_retries'] - 1:
-                            await asyncio.sleep(self.config['retry_delay'])
-                            continue
-                    
-                    try:
-                        content = await response.text(encoding='utf-8')
-                    except UnicodeDecodeError:
-                        content = await response.text(encoding='latin-1')
-                        
-                    return response, content
-
             except Exception as e:
-                self.metrics['requests_failed'] += 1
-                self.logger.error(f"Request error on attempt {attempt + 1}: {str(e)}")
-                if attempt < self.config['max_retries'] - 1:
-                    await asyncio.sleep(self.config['retry_delay'])
-                continue
-            finally:
-                if session:
-                    await self.session_manager.release()
+                if attempt == self.max_retries - 1:
+                    raise
+                await asyncio.sleep(self.retry_delay * (attempt + 1))
+                
+    def add_vulnerability(self, vulnerability_type, description, severity="Medium", evidence=None):
+        """Add a vulnerability finding"""
+        evidence_dict = evidence or {}
+        vuln = {
+            'type': vulnerability_type,
+            'description': description,
+            'severity': severity,
+            'evidence': json.dumps(evidence_dict),  # Serialize evidence to JSON
+            'timestamp': dt.now(timezone.utc).isoformat()
+        }
+        self.vulnerabilities.append(vuln)
+        return vuln
+        
+    async def scan(self):
+        """Base scan method to be implemented by subclasses"""
+        return await self._scan()
+        
+    async def _scan(self):
+        """Internal scan method to be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement _scan method")
 
-        return None, None
-
-    async def cleanup(self):
-        """Enhanced cleanup with better error handling"""
+class XSSScanner(BaseScanner):
+    def __init__(self, url, session=None):
+        super().__init__(url, session)
+        self.xss_payloads = [
+            # Basic Script Injection
+            '<script>alert(1)</script>',
+            '"><script>alert(1)</script>',
+            "'><script>alert(1)</script>",
+            '</script><script>alert(1)</script>',
+            
+            # Event Handler Injections
+            '" onmouseover="alert(1)"',
+            "' onmouseover='alert(1)'",
+            '" onload="alert(1)"',
+            "' onload='alert(1)'",
+            '" onerror="alert(1)"',
+            "' onerror='alert(1)'",
+            '" onfocus="alert(1)"',
+            "' onfocus='alert(1)'",
+            
+            # HTML Tag Injections
+            '<img src=x onerror=alert(1)>',
+            '"><img src=x onerror=alert(1)>',
+            "'><img src=x onerror=alert(1)>",
+            '<svg onload=alert(1)>',
+            '"><svg onload=alert(1)>',
+            "'><svg onload=alert(1)>",
+            
+            # JavaScript Protocol
+            'javascript:alert(1)',
+            'javascript:alert(1)//',
+            'javascript:alert(1);//',
+            
+            # Encoded Payloads
+            '&lt;script&gt;alert(1)&lt;/script&gt;',
+            '%3Cscript%3Ealert(1)%3C/script%3E',
+            '&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;',
+            
+            # Template Literal
+            '`<script>alert(1)</script>`',
+            '"><script>alert`1`</script>',
+            "'><script>alert`1`</script>",
+            
+            # DOM-based XSS
+            '"><img src=x id="x" onerror="(()=>{alert(1)})()">', 
+            '"><script>(()=>{alert(1)})()</script>',
+            
+            # Exotic Payloads
+            '<details open ontoggle=alert(1)>',
+            '<body onpageshow=alert(1)>',
+            '<input autofocus onfocus=alert(1)>',
+            '<video src=x onerror=alert(1)>',
+            '<audio src=x onerror=alert(1)>',
+            
+            # Bypass Attempts
+            '<scr<script>ipt>alert(1)</scr</script>ipt>',
+            '<script>al\u0065rt(1)</script>',
+            '<scr\x00ipt>alert(1)</scr\x00ipt>',
+            '"><script>document.write(String.fromCharCode(60,115,99,114,105,112,116,62,97,108,101,114,116,40,49,41,60,47,115,99,114,105,112,116,62))</script>',
+            
+            # Mixed Context
+            '\'/><script>alert(1)</script><input value=\'',
+            '`/><script>alert(1)</script><input value=`',
+            
+            # SVG Context
+            '<svg><script>alert(1)</script></svg>',
+            '<svg><animate onbegin=alert(1) attributeName=x dur=1s>',
+            '<svg><set attributeName=onmouseover value=alert(1)>',
+            
+            # CSS Context
+            '<style>@import "data:,alert(1)";</style>',
+            '"><style>*{background-image:url("javascript:alert(1)")}</style>',
+            
+            # Meta Refresh
+            '<meta http-equiv="refresh" content="0;url=javascript:alert(1)">',
+            
+            # Base Tag
+            '<base href="javascript:alert(1);//">',
+            
+            # Link Tag
+            '<link rel="import" href="data:text/html,<script>alert(1)</script>">',
+            
+            # Unicode Escapes
+            '<script>\u0061\u006C\u0065\u0072\u0074(1)</script>',
+            
+            # HTML5 Elements
+            '<details ontoggle="alert(1)" open>',
+            '<marquee onstart=alert(1)>',
+            '<meter onmouseover=alert(1)>',
+            '<object data="data:text/html,<script>alert(1)</script>">',
+            
+            # Recursive Payloads
+            '"><script>eval(atob("YWxlcnQoMSk="))</script>',
+            '"><img src=x onerror="eval(atob(\'YWxlcnQoMSk=\'))">'
+        ]
+        
+    async def find_input_points(self, url):
+        input_points = []
         try:
-            # Cleanup scanners first
-            if hasattr(self, 'scanners'):
-                for scanner_type, scanner in self.scanners.items():
-                    try:
-                        if hasattr(scanner, 'cleanup'):
-                            await scanner.cleanup()
-                    except Exception as e:
-                        self.log(f"Error cleaning up {scanner_type} scanner: {str(e)}", "ERROR")
-
-            # Cleanup session manager
-            if hasattr(self, 'session_manager'):
-                try:
-                    await self.session_manager.cleanup()
-                except Exception as e:
-                    self.log(f"Error cleaning up session manager: {str(e)}", "ERROR")
-
-            self._initialized = False
-            self.log("Cleanup completed", "INFO")
-
+            async with self.session.get(url, verify_ssl=False) as response:
+                content = await response.text()
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # URL Parameters
+                parsed_url = urlparse(url)
+                if parsed_url.query:
+                    params = urllib.parse.parse_qs(parsed_url.query)
+                    for param in params:
+                        input_points.append(('url_param', param))
+                
+                # Form Inputs
+                forms = soup.find_all('form')
+                for form in forms:
+                    method = form.get('method', 'get').lower()
+                    action = form.get('action', '')
+                    if not action:
+                        action = url
+                    elif not action.startswith(('http://', 'https://')):
+                        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                        action = urllib.parse.urljoin(base_url, action)
+                    
+                    # Get all input elements
+                    inputs = form.find_all(['input', 'textarea', 'select'])
+                    for input_elem in inputs:
+                        input_name = input_elem.get('name', '')
+                        if input_name:
+                            input_points.append(('form', {
+                                'method': method,
+                                'action': action,
+                                'name': input_name,
+                                'type': input_elem.get('type', 'text')
+                            }))
+                
+                # Links with Parameters
+                links = soup.find_all('a', href=True)
+                for link in links:
+                    href = link['href']
+                    if not href.startswith(('http://', 'https://')):
+                        href = urllib.parse.urljoin(url, href)
+                    parsed_link = urlparse(href)
+                    if parsed_link.query:
+                        params = urllib.parse.parse_qs(parsed_link.query)
+                        for param in params:
+                            input_points.append(('link_param', {
+                                'url': href,
+                                'param': param
+                            }))
+                
+                # HTML Attributes
+                all_elements = soup.find_all()
+                for element in all_elements:
+                    for attr, value in element.attrs.items():
+                        if isinstance(value, str) and value.strip():
+                            input_points.append(('attribute', {
+                                'tag': element.name,
+                                'attribute': attr,
+                                'value': value
+                            }))
+                
+                # JavaScript Event Handlers
+                event_handlers = [
+                    'onclick', 'onmouseover', 'onmouseout', 'onload', 'onerror',
+                    'onsubmit', 'onchange', 'onfocus', 'onblur', 'onkeyup',
+                    'onkeydown', 'onkeypress'
+                ]
+                for element in all_elements:
+                    for handler in event_handlers:
+                        if element.has_attr(handler):
+                            input_points.append(('event_handler', {
+                                'tag': element.name,
+                                'handler': handler,
+                                'value': element[handler]
+                            }))
+                
+                # Custom Data Attributes
+                for element in all_elements:
+                    for attr in element.attrs:
+                        if attr.startswith('data-'):
+                            input_points.append(('data_attribute', {
+                                'tag': element.name,
+                                'attribute': attr,
+                                'value': element[attr]
+                            }))
+                
         except Exception as e:
-            self.log(f"Cleanup error: {str(e)}", "ERROR")
-        finally:
-            # Final cleanup attempt for session manager
-            if hasattr(self, 'session_manager'):
-                try:
-                    await self.session_manager.cleanup()
-                except:
-                    pass
+            self.logger.error(f"Error finding input points: {str(e)}")
+        
+        return input_points
 
+    async def test_input_point(self, input_type, input_point, payload):
+        try:
+            if input_type == 'url_param':
+                # Test URL parameters
+                parsed_url = urlparse(self.url)
+                params = dict(urllib.parse.parse_qsl(parsed_url.query))
+                params[input_point] = payload
+                query = urllib.parse.urlencode(params)
+                test_url = parsed_url._replace(query=query).geturl()
+                
+                async with self.session.get(test_url, verify_ssl=False) as response:
+                    content = await response.text()
+                    if await self.check_payload_reflection(content, payload):
+                        self.add_vulnerability(
+                            "XSS",
+                            f"XSS vulnerability found in URL parameter '{input_point}'",
+                            "High",
+                            {"url": test_url, "payload": payload}
+                        )
+            
+            elif input_type == 'form':
+                # Test form inputs
+                method = input_point['method']
+                action = input_point['action']
+                data = {input_point['name']: payload}
+                
+                if method == 'get':
+                    params = urllib.parse.urlencode(data)
+                    test_url = f"{action}?{params}"
+                    async with self.session.get(test_url, verify_ssl=False) as response:
+                        content = await response.text()
+                else:  # POST
+                    async with self.session.post(action, data=data, verify_ssl=False) as response:
+                        content = await response.text()
+                
+                if await self.check_payload_reflection(content, payload):
+                    self.add_vulnerability(
+                        "XSS",
+                        f"XSS vulnerability found in form input '{input_point['name']}'",
+                        "High",
+                        {"form_action": action, "method": method, "payload": payload}
+                    )
+            
+            elif input_type == 'link_param':
+                # Test link parameters
+                parsed_url = urlparse(input_point['url'])
+                params = dict(urllib.parse.parse_qsl(parsed_url.query))
+                params[input_point['param']] = payload
+                query = urllib.parse.urlencode(params)
+                test_url = parsed_url._replace(query=query).geturl()
+                
+                async with self.session.get(test_url, verify_ssl=False) as response:
+                    content = await response.text()
+                    if await self.check_payload_reflection(content, payload):
+                        self.add_vulnerability(
+                            "XSS",
+                            f"XSS vulnerability found in link parameter '{input_point['param']}'",
+                            "High",
+                            {"url": test_url, "payload": payload}
+                        )
+            
+            elif input_type in ['attribute', 'event_handler', 'data_attribute']:
+                # For these types, we need to check if the payload appears in the context where it could be executed
+                async with self.session.get(self.url, verify_ssl=False) as response:
+                    content = await response.text()
+                    if await self.check_payload_reflection(content, payload):
+                        self.add_vulnerability(
+                            "XSS",
+                            f"Potential XSS vulnerability found in {input_type}",
+                            "Medium",
+                            {"element": input_point['tag'], "attribute": input_point.get('attribute', input_point.get('handler')), "payload": payload}
+                        )
+                        
+        except Exception as e:
+            self.logger.error(f"Error testing input point: {str(e)}")
+
+    async def check_payload_reflection(self, content, payload):
+        # Check for exact payload match
+        if payload in content:
+            return True
+            
+        # Check for URL-decoded payload
+        url_decoded = urllib.parse.unquote(payload)
+        if url_decoded in content:
+            return True
+            
+        # Check for HTML-decoded payload
+        html_decoded = BeautifulSoup(content, 'html.parser').get_text()
+        if payload in html_decoded:
+            return True
+            
+        # Check for payload in script tags
+        soup = BeautifulSoup(content, 'html.parser')
+        scripts = soup.find_all('script')
+        for script in scripts:
+            if payload in str(script):
+                return True
+                
+        # Check for payload in event handlers
+        for tag in soup.find_all():
+            for attr in tag.attrs:
+                if attr.startswith('on') and payload in str(tag[attr]):
+                    return True
+                    
+        # Check for case-insensitive matches
+        if payload.lower() in content.lower():
+            return True
+            
+        return False
+
+    async def _scan(self):
+        self.logger.info(f"Starting XSS scan for {self.url}")
+        
+        # Find all input points
+        input_points = await self.find_input_points(self.url)
+        self.logger.info(f"Found {len(input_points)} potential input points")
+        
+        # Test each input point with each payload
+        for input_type, input_point in input_points:
+            self.logger.info(f"Testing input point: {input_type} - {input_point}")
+            for payload in self.xss_payloads:
+                self.logger.debug(f"Testing payload: {payload}")
+                await self.test_input_point(input_type, input_point, payload)
+                
+        self.logger.info("XSS scan completed")
+
+class VulnerabilityScanner:
+    def __init__(self, url):
+        self.url = url
+        self.session = None
+        self.xss_scanner = None
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.vulnerabilities = []
+        
     async def __aenter__(self):
-        if not await self.initialize():
-            raise Exception("Scanner initialization failed")
+        await self.initialize()
         return self
-
+        
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.cleanup()
-
-    def log(self, message, level='INFO', details=None):
-        """Standardized logging method"""
-        log_entry = {
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'level': level,
-            'message': message,
-            'details': details,
-            'color': self.log_colors.get(level, 'black'),
-            'scanner': 'VulnerabilityScanner'
-        }
-        self.scan_logs.append(log_entry)
         
-        # Log to logger with appropriate level
-        log_level = getattr(logging, level.upper(), logging.INFO)
-        self.logger.log(log_level, message)
+    async def initialize(self):
+        """Initialize the scanner and its components"""
+        if not self.session:
+            self.session = aiohttp.ClientSession()
+        if not self.xss_scanner:
+            self.xss_scanner = XSSScanner(self.url, self.session)
         
-        # Print to console with color
-        print(f"[{level}] {message}")
-
-    def stop(self):
-        """Request scan to stop"""
-        self._stop_event.set()
-
-    async def should_continue(self):
-        """Check if scan should continue"""
-        return not self._stop_event.is_set()
-
-    async def run_scanner_on_url(self, check_type, url):
-        """Run scanner on specific URL"""
+    async def cleanup(self):
+        """Cleanup resources"""
+        if self.session:
+            await self.session.close()
+            self.session = None
+            
+    async def scan(self, checks=None):
+        """
+        Run security scans based on specified checks
+        
+        Args:
+            checks (list): List of security checks to run. If None, runs all checks.
+        """
         try:
-            scanner = self.scanners[check_type]
-            return await scanner.scan(url)
-        except Exception as e:
-            self.log(f"Error running {check_type} scanner on {url}: {str(e)}", "ERROR")
-            return None
-
-    async def verify_vulnerability(self, vulnerability, url):
-        """Verify detected vulnerability"""
-        try:
-            vuln_type = vulnerability.get('type', '').lower()
-            details = vulnerability.get('details', {})
+            self.logger.info(f"Starting security scan for {self.url}")
             
-            # Verify based on vulnerability type
-            if vuln_type == 'xss':
-                return await self.verify_xss(url, details)
-            elif vuln_type == 'sql':
-                return await self.verify_sql_injection(url, details)
-            elif vuln_type == 'csrf':
-                return await self.verify_csrf(url, details)
+            # Initialize scanner components
+            await self.initialize()
             
-            return True  # Default to true for unverifiable vulnerabilities
-            
-        except Exception as e:
-            self.log(f"Error verifying vulnerability: {str(e)}", "ERROR")
-            return False
-
-    async def verify_xss(self, url, details):
-        """Verify XSS vulnerability"""
-        try:
-            payload = details.get('payload')
-            if not payload:
-                return False
-            
-            response, content = await self.make_request(url)
-            if not content:
-                return False
-            
-            # Check for payload reflection
-            if payload in content:
-                # Check if payload is properly encoded
-                if '&lt;' not in content and '<' in payload:
-                    return True
+            if not checks:
+                checks = ['xss']  # Default to XSS scan if no checks specified
                 
-            return False
+            # Run XSS scan if specified
+            if 'xss' in checks:
+                self.logger.info("Starting XSS scan")
+                await self.xss_scanner._scan()
+                self.vulnerabilities.extend(self.xss_scanner.vulnerabilities)
             
-        except Exception as e:
-            self.log(f"Error verifying XSS: {str(e)}", "ERROR")
-            return False
-
-    def process_scan_results(self, results):
-        """Enhanced result processing with better categorization and filtering"""
-        processed_results = {
-            'high_priority': [],
-            'medium_priority': [],
-            'low_priority': [],
-            'info': []
-        }
-        
-        # Add severity scoring
-        severity_scores = {
-            'Critical': 100,
-            'High': 80,
-            'Medium': 60,
-            'Low': 40,
-            'Info': 20
-        }
-        
-        for vuln in results:
-            # Add confidence score
-            confidence_score = self.calculate_confidence(vuln)
-            vuln['confidence_score'] = confidence_score
-            
-            # Add risk score
-            severity = vuln.get('severity', 'Low')
-            risk_score = severity_scores.get(severity, 0) * (confidence_score / 100)
-            vuln['risk_score'] = risk_score
-            
-            # Categorize by priority
-            if risk_score >= 80:
-                processed_results['high_priority'].append(vuln)
-            elif risk_score >= 60:
-                processed_results['medium_priority'].append(vuln)
-            elif risk_score >= 40:
-                processed_results['low_priority'].append(vuln)
+            # Log results
+            if self.vulnerabilities:
+                self.logger.info(f"Found {len(self.vulnerabilities)} vulnerabilities")
+                for vuln in self.vulnerabilities:
+                    self.logger.info(f"- {vuln['type']}: {vuln['description']} (Severity: {vuln['severity']})")
             else:
-                processed_results['info'].append(vuln)
+                self.logger.info("No vulnerabilities found")
                 
-        return processed_results
-
-    def calculate_confidence(self, vulnerability):
-        """Calculate confidence score for vulnerability"""
-        confidence = 100
-        
-        # Reduce confidence based on various factors
-        if not vulnerability.get('proof_of_concept'):
-            confidence -= 20
-        if not vulnerability.get('verified'):
-            confidence -= 30
-        if vulnerability.get('false_positive_prone', False):
-            confidence -= 25
-            
-        return max(0, confidence)
-
-    async def log_metrics(self):
-        """Log performance metrics"""
-        metrics_data = {
-            'timestamp': datetime.now().isoformat(),
-            'scan_id': self._scan_id,
-            'url': self.url,
-            'metrics': self.metrics,
-            'performance': {
-                'memory_usage': psutil.Process().memory_info().rss / 1024 / 1024,
-                'cpu_percent': psutil.Process().cpu_percent(),
-                'thread_count': threading.active_count()
+            return {
+                'url': self.url,
+                'vulnerabilities': self.vulnerabilities,
+                'scan_time': dt.now(timezone.utc).isoformat(),
+                'total_vulnerabilities': len(self.vulnerabilities),
+                'status': 'completed',
+                'metrics': {
+                    'total_requests': self.xss_scanner.requests_made if self.xss_scanner else 0,
+                    'checks_performed': checks
+                }
             }
-        }
-        
-        # Log metrics
-        self.logger.info(f"Scan metrics: {json.dumps(metrics_data, indent=2)}")
-        
-        # Store metrics for analysis
-        await self.store_metrics(metrics_data)
-
-    def load_config(self):
-        """Load configuration from file with validation"""
-        try:
-            config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    
-                # Validate configuration
-                self.validate_config(config)
-                self.config.update(config)
             
         except Exception as e:
-            self.logger.error(f"Error loading configuration: {str(e)}")
-            
-    def validate_config(self, config):
-        """Validate configuration values"""
-        required_fields = ['timeout', 'max_retries', 'concurrent_scans']
-        for field in required_fields:
-            if field not in config:
-                raise ValueError(f"Missing required config field: {field}")
-                
-        if config.get('timeout') < 1:
-            raise ValueError("Timeout must be at least 1 second")
+            self.logger.error(f"Error during security scan: {str(e)}")
+            traceback.print_exc()
+            return {
+                'url': self.url,
+                'vulnerabilities': [],
+                'scan_time': dt.now(timezone.utc).isoformat(),
+                'total_vulnerabilities': 0,
+                'status': 'error',
+                'error': str(e),
+                'metrics': {
+                    'total_requests': self.xss_scanner.requests_made if self.xss_scanner else 0,
+                    'checks_performed': checks
+                }
+            }
+        finally:
+            # Cleanup resources
+            await self.cleanup()

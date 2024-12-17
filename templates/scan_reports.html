@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>Scan Reports</h2>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Target URL</th>
+                            <th>Status</th>
+                            <th>Start Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in scans %}
+                        <tr>
+                            <td>{{ scan.id }}</td>
+                            <td>{{ scan.url }}</td>
+                            <td>
+                                <span class="badge {% if scan.status == 'completed' %}bg-success{% elif scan.status == 'error' %}bg-danger{% else %}bg-warning{% endif %}">
+                                    {{ scan.status }}
+                                </span>
+                            </td>
+                            <td>{{ scan.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="viewScanDetails({{ scan.id }})">
+                                    View Details
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Details Modal -->
+<div class="modal fade" id="scanDetailsModal" tabindex="-1" aria-labelledby="scanDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scanDetailsModalLabel">Scan Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="scan-info mb-3">
+                    <h6>Scan Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Target URL:</strong> <span id="detailTargetUrl"></span></p>
+                            <p><strong>Status:</strong> <span id="detailStatus"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Start Time:</strong> <span id="detailStartTime"></span></p>
+                            <p><strong>End Time:</strong> <span id="detailEndTime"></span></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="vulnerabilities mb-3">
+                    <h6>Vulnerabilities Found</h6>
+                    <div id="vulnerabilitiesList" class="accordion">
+                        <!-- Vulnerabilities will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadReport()">Download Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}

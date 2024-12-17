@@ -1,34 +1,42 @@
 # Web Framework
 Flask==3.0.0
 Flask-Login==0.6.3
+Flask-Migrate==4.0.5
 Flask-SQLAlchemy==3.1.1
 Flask-WTF==1.2.1
 Flask-Talisman==1.1.0
+Flask-Limiter==3.5.0
 Werkzeug==3.0.1
-SQLAlchemy==2.0.23
+limits>=3.7.0
 
 # Async and HTTP
-aiohttp>=3.8.0
-asyncio>=3.4.3
+aiohttp==3.9.1
 playwright>=1.20.0
+requests==2.31.0
 
 # HTML Parsing
-beautifulsoup4>=4.9.3
-lxml>=4.9.3
+beautifulsoup4==4.12.2
+bs4==0.0.1
 
 # System monitoring
 psutil>=5.8.0
 
 # Security
-PyYAML>=5.4.1
-cryptography>=41.0.7
-colorama>=0.4.6
+colorama>=0.4.4
 
 # Utilities
-python-dotenv>=1.0.0
-urllib3>=1.26.5
+urllib3>=1.26.7
+python-dotenv==1.0.0
 pydantic>=1.9.0
 
 # Testing
 pytest>=7.4.3
 pytest-asyncio>=0.21.1
+
+# Additional dependencies
+SQLAlchemy==2.0.23
+WTForms==3.1.1
+alembic==1.13.1
+
+# PDF Generation
+fpdf2==2.7.6

@@ -5,7 +5,7 @@
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-white">
                     <h3 class="card-title mb-0">Login</h3>
                 </div>
                 <div class="card-body">
@@ -17,8 +17,8 @@
                         {% endif %}
                     {% endwith %}
                     
-                    <form method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <form method="POST" action="{{ url_for('login') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" name="username" required>
@@ -39,4 +39,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

@@ -1,0 +1,253 @@
+/* Main stylesheet for vulnerability scanner */
+
+/* General styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container {
+    margin-top: 2rem;
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px 10px 0 0 !important;
+}
+
+/* Form styles */
+.form-control {
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Button styles */
+.btn {
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Progress box styles */
+.floating-scan-box {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: none;
+}
+
+.floating-scan-box .header {
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.floating-scan-box .content {
+    padding: 15px;
+}
+
+.floating-scan-box .progress {
+    height: 10px;
+    margin: 10px 0;
+}
+
+/* Results styles */
+.vulnerability-item {
+    border-left: 4px solid transparent;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vulnerability-item.high {
+    border-left-color: #dc3545;
+}
+
+.vulnerability-item.medium {
+    border-left-color: #ffc107;
+}
+
+.vulnerability-item.low {
+    border-left-color: #17a2b8;
+}
+
+/* Alert styles */
+.alert {
+    border-radius: 5px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Checkbox styles */
+.form-check-input {
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Loading spinner */
+.spinner-border {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-width: 0.2em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .floating-scan-box {
+        width: 90%;
+        left: 5%;
+        right: 5%;
+    }
+    
+    .card {
+        margin: 0 10px;
+    }
+}
+
+/* Animation for progress updates */
+@keyframes progress-bar-stripes {
+    from { background-position: 1rem 0; }
+    to { background-position: 0 0; }
+}
+
+.progress-bar {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+/* Tooltip customization */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip-inner {
+    max-width: 200px;
+    padding: 0.5rem;
+    background-color: #000;
+    border-radius: 4px;
+}
+
+/* Status badges */
+.badge {
+    padding: 0.5em 0.8em;
+    font-weight: 500;
+    border-radius: 30px;
+}
+
+.badge-running {
+    background-color: #0dcaf0;
+    color: #fff;
+}
+
+.badge-completed {
+    background-color: #198754;
+    color: #fff;
+}
+
+.badge-error {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* Vulnerability Display Styles */
+.vulnerabilities {
+    margin-top: 20px;
+}
+
+.vuln-group {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fff;
+}
+
+.vuln-type-header {
+    color: #2c3e50;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.list-group-item {
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.list-group-item .badge {
+    font-size: 0.85rem;
+}
+
+.evidence-toggle.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+pre code {
+    display: block;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Severity Badge Colors */
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.badge.bg-success {
+    background-color: #28a745 !important;
+}

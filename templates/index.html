@@ -13,7 +13,7 @@
                         <div class="mb-3">
                             <label for="url" class="form-label">Target URL:</label>
                             <div class="input-group">
-                                <span class="input-group-text"><i class="fa fa-globe"></i></span>
+                                <span class="input-group-text"><i class="bi bi-globe"></i></span>
                                 <input type="text" class="form-control" id="url" name="url" 
                                        placeholder="Enter website URL (e.g., example.com)" required>
                             </div>
@@ -28,7 +28,7 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkXSS" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkXSS" value="xss" checked>
                                         <label class="form-check-label" for="checkXSS">
                                             XSS Vulnerabilities
                                         </label>
@@ -36,7 +36,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkSQL" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkSQL" value="sql" checked>
                                         <label class="form-check-label" for="checkSQL">
                                             SQL Injection
                                         </label>
@@ -44,7 +44,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkSSL" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkSSL" value="ssl" checked>
                                         <label class="form-check-label" for="checkSSL">
                                             SSL/TLS Issues
                                         </label>
@@ -52,7 +52,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkHeaders" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkHeaders" value="headers" checked>
                                         <label class="form-check-label" for="checkHeaders">
                                             Security Headers
                                         </label>
@@ -60,7 +60,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkCSRF" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkCSRF" value="csrf" checked>
                                         <label class="form-check-label" for="checkCSRF">
                                             CSRF Vulnerabilities
                                         </label>
@@ -68,7 +68,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="checkClickjacking" checked>
+                                        <input class="form-check-input" type="checkbox" id="checkClickjacking" value="clickjacking" checked>
                                         <label class="form-check-label" for="checkClickjacking">
                                             Clickjacking
                                         </label>
@@ -79,10 +79,10 @@
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fa fa-search"></i> Start Selected Scans
+                                <i class="bi bi-search"></i> Start Selected Scans
                             </button>
                             <button type="button" class="btn btn-outline-primary" id="quickScanBtn">
-                                <i class="fa fa-bolt"></i> Quick Scan (All Checks)
+                                <i class="bi bi-lightning"></i> Quick Scan (All Checks)
                             </button>
                         </div>
                     </form>
@@ -92,10 +92,10 @@
                         <div class="card-body">
                             <div class="card-title">
                                 <span>
-                                    <i class="fa fa-cog fa-spin"></i> Scan in Progress
+                                    <i class="bi bi-cog fa-spin"></i> Scan in Progress
                                 </span>
                                 <button type="button" class="close-btn" onclick="minimizeScan()">
-                                    <i class="fa fa-minus"></i>
+                                    <i class="bi bi-minus"></i>
                                 </button>
                             </div>
                             <div class="scan-url" id="scanUrl"></div>
@@ -126,15 +126,15 @@
 <div id="scanProgressBox" class="floating-scan-box">
     <div class="header">
         <h6>
-            <i class="fa fa-shield-alt fa-spin"></i>
+            <i class="bi bi-shield-alt fa-spin"></i>
             Security Scan
         </h6>
         <div class="actions">
             <button type="button" class="control-btn" onclick="toggleScanPause()" id="pauseButton">
-                <i class="fa fa-pause"></i>
+                <i class="bi bi-pause"></i>
             </button>
             <button type="button" class="minimize-btn" onclick="toggleScanBox()">
-                <i class="fa fa-minus"></i>
+                <i class="bi bi-minus"></i>
             </button>
         </div>
     </div>
@@ -170,7 +170,8 @@ document.addEventListener('DOMContentLoaded', function() {
             sql: document.getElementById('checkSQL').checked,
             csrf: document.getElementById('checkCSRF').checked,
             headers: document.getElementById('checkHeaders').checked,
-            ssl: document.getElementById('checkSSL').checked
+            ssl: document.getElementById('checkSSL').checked,
+            clickjacking: document.getElementById('checkClickjacking').checked
         };
 
         fetch('/scan', {
@@ -290,12 +291,12 @@ function updatePauseButton() {
     const icon = btn.querySelector('i');
     
     if (scanPaused) {
-        icon.classList.remove('fa-pause');
-        icon.classList.add('fa-play');
+        icon.classList.remove('bi-pause');
+        icon.classList.add('bi-play');
         btn.title = 'Resume Scan';
     } else {
-        icon.classList.remove('fa-play');
-        icon.classList.add('fa-pause');
+        icon.classList.remove('bi-play');
+        icon.classList.add('bi-pause');
         btn.title = 'Pause Scan';
     }
 }
@@ -338,8 +339,8 @@ function minimizeScan() {
     const progressElement = document.getElementById('scanProgress');
     progressElement.classList.toggle('minimized');
     const btn = progressElement.querySelector('.close-btn i');
-    btn.classList.toggle('fa-minus');
-    btn.classList.toggle('fa-plus');
+    btn.classList.toggle('bi-minus');
+    btn.classList.toggle('bi-plus');
 }
 
 function displayResults(data) {
@@ -369,7 +370,7 @@ function showError(message) {
     progressSection.style.display = 'none';
     resultsSection.innerHTML = `
         <div class="alert alert-danger">
-            <i class="fa fa-exclamation-circle"></i> ${message}
+            <i class="bi bi-exclamation-circle"></i> ${message}
         </div>
     `;
 }
@@ -387,8 +388,8 @@ function toggleScanBox() {
     const box = document.getElementById('scanProgressBox');
     const btn = box.querySelector('.minimize-btn i');
     box.classList.toggle('minimized');
-    btn.classList.toggle('fa-minus');
-    btn.classList.toggle('fa-plus');
+    btn.classList.toggle('bi-minus');
+    btn.classList.toggle('bi-plus');
 }
 
 function closeScanBox() {
@@ -439,4 +440,4 @@ function cancelScan() {
     showToast('Scan Cancelled', 'The scan has been cancelled.', 'warning');
 }
 </script>
-{% endblock %} 
+{% endblock %}
