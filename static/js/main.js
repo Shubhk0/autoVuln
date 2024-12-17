@@ -201,6 +201,21 @@ async function viewScanDetails(scanId) {
         
         if (data.results && data.results.length > 0) {
             data.results.forEach((vuln, index) => {
+                // Create reproduction steps HTML if available
+                let reproductionStepsHtml = '';
+                if (vuln.reproduction_steps && vuln.reproduction_steps.length > 0) {
+                    reproductionStepsHtml = `
+                        <div class="mt-3">
+                            <h6>How to Reproduce:</h6>
+                            <ol class="list-group list-group-numbered">
+                                ${vuln.reproduction_steps.map(step => 
+                                    `<li class="list-group-item">${escapeHtml(step)}</li>`
+                                ).join('')}
+                            </ol>
+                        </div>
+                    `;
+                }
+                
                 const vulnHtml = `
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="heading${index}">
@@ -212,7 +227,18 @@ async function viewScanDetails(scanId) {
                         <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#vulnerabilitiesList">
                             <div class="accordion-body">
                                 <p><strong>Description:</strong> ${escapeHtml(vuln.description)}</p>
-                                ${vuln.evidence ? `<p><strong>Evidence:</strong> <pre>${escapeHtml(JSON.stringify(vuln.evidence, null, 2))}</pre></p>` : ''}
+                                
+                                ${vuln.evidence ? `
+                                <div class="mt-3">
+                                    <h6>Evidence:</h6>
+                                    <pre class="bg-light p-2"><code>${escapeHtml(JSON.stringify(vuln.evidence, null, 2))}</code></pre>
+                                </div>` : ''}
+                                
+                                ${reproductionStepsHtml}
+                                
+                                <div class="text-muted small mt-3">
+                                    Found at: ${new Date(vuln.timestamp).toLocaleString()}
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -29,16 +29,8 @@ logger = logging.getLogger(__name__)
 def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
-    
-    # Ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-        
-    # Configure SQLAlchemy
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(app.instance_path, "vuln_scanner.db")}'
+    app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this to a secure secret key
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vulnscan.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize extensions
@@ -55,17 +47,13 @@ def create_app():
         
     with app.app_context():
         # Create database tables
-        db.create_all()
-        
-        # Create admin user if it doesn't exist
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                is_admin=True
-            )
-            admin.set_password('admin')
+        inspector = db.inspect(db.engine)
+        if not inspector.has_table('user'):
+            db.create_all()
+            
+            # Create admin user if it doesn't exist
+            admin = User(username='admin', email='admin@example.com', is_admin=True)
+            admin.set_password('admin')  # Change this password in production
             db.session.add(admin)
             db.session.commit()
     
@@ -140,9 +128,12 @@ def create_app():
                 logger.error("Invalid request data: No URL provided")
                 return jsonify({'error': 'URL is required'}), 400
                 
-            # Log the scan request
-            logger.info(f"Starting scan for URL: {url} with checks: {checks}")
-            
+            # Validate checks
+            valid_checks = {'xss', 'sql', 'cmd', 'ssrf'}
+            if not all(check in valid_checks for check in checks):
+                logger.error(f"Invalid scanner types requested: {checks}")
+                return jsonify({'error': 'Invalid scanner types'}), 400
+                
             # Create scan record
             scan = Scan(
                 url=url,
@@ -174,7 +165,7 @@ def create_app():
     @app.route('/scan/<int:scan_id>/status')
     @login_required
     def get_scan_status(scan_id):
-        """Get the status of a specific scan"""
+        """Get the status of a specific scan with enhanced details"""
         try:
             scan = db.session.get(Scan, scan_id)
             if not scan:
@@ -186,11 +177,12 @@ def create_app():
             response = {
                 'status': scan.status,
                 'progress': scan.progress,
-                'current_scanner': scan.current_scanner
+                'current_scanner': scan.current_scanner,
+                'scan_status': scan.metrics.get('scan_status', {}) if scan.metrics else {}
             }
             
             if scan.status == 'completed':
-                response['results'] = [result.to_dict() for result in scan.results]
+                response['vulnerabilities'] = [result.to_dict() for result in scan.results]
             elif scan.status == 'error':
                 response['error'] = scan.error_message
                 
@@ -198,7 +190,7 @@ def create_app():
             
         except Exception as e:
             logger.error(f"Error getting scan status: {str(e)}")
-            return jsonify({'error': 'Internal server error'}), 500
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/status/<scan_id>')
     @login_required
@@ -383,6 +375,13 @@ def create_app():
         flash('You have been logged out.')
         return redirect(url_for('login'))
 
+    @app.template_filter('datetime')
+    def format_datetime(value):
+        """Format a datetime object to a readable string"""
+        if value is None:
+            return ""
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+
     return app
 
 # Create the application instance
@@ -418,12 +417,18 @@ def run_scan_in_background(scan_id, url, checks):
                 
                 # Add vulnerability findings
                 for vuln in results.get('vulnerabilities', []):
+                    # Check if the table exists, create it if it doesn't
+                    inspector = db.inspect(db.engine)
+                    if not inspector.has_table('scan_result'):
+                        db.create_all()
+                        
                     result = ScanResult(
                         scan_id=scan.id,
                         vulnerability_type=vuln['type'],
                         severity=vuln['severity'],
                         description=vuln['description'],
                         evidence=vuln['evidence'],  # Evidence is already serialized to JSON
+                        reproduction_steps=vuln['reproduction_steps'],  # Steps are already serialized
                         timestamp=dt.fromisoformat(vuln['timestamp'])
                     )
                     db.session.add(result)

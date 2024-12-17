@@ -70,6 +70,7 @@ class ScanResult(db.Model):
     severity = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=False)
     evidence = db.Column(db.Text)  # JSON string of evidence data
+    reproduction_steps = db.Column(db.Text)  # JSON string of reproduction steps
     timestamp = db.Column(db.DateTime(timezone=True), default=dt.now(timezone.utc))
     location = db.Column(db.String(500))  # URL or specific location where vulnerability was found
     created_at = db.Column(db.DateTime, default=dt.utcnow)
@@ -84,10 +85,17 @@ class ScanResult(db.Model):
             'severity': self.severity,
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'evidence': self.evidence
+            'evidence': json.loads(self.evidence) if self.evidence else {},
+            'reproduction_steps': json.loads(self.reproduction_steps) if self.reproduction_steps else []
         }
         return d
 
     def update_evidence(self, evidence_dict):
         """Update evidence as JSON string"""
         self.evidence = json.dumps(evidence_dict)
+        
+    def update_reproduction_steps(self, steps):
+        """Update reproduction steps as JSON string"""
+        if isinstance(steps, str):
+            steps = [steps]
+        self.reproduction_steps = json.dumps(steps)

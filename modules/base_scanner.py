@@ -81,13 +81,14 @@ class BaseScanner(ABC):
         # Retry logic for failed requests
         max_retries = self.config.get('max_retries', 3)
         retry_delay = self.config.get('retry_delay', 1)
+        timeout = self.config.get('timeout', 30)
 
         for attempt in range(max_retries):
             try:
                 # Ensure session is active
                 if self.session.closed:
-                    self.logger.error("Session is closed")
-                    return None, None
+                    self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout))
+                    self.logger.info("Created new session due to closed session")
 
                 # Merge headers with defaults
                 request_headers = {
@@ -101,70 +102,32 @@ class BaseScanner(ABC):
                 if headers:
                     request_headers.update(headers)
 
-                # Validate URL
-                try:
-                    if not url.startswith(('http://', 'https://')):
-                        url = 'http://' + url
-                    parsed = urllib.parse.urlparse(url)
-                    if not all([parsed.scheme, parsed.netloc]):
-                        raise ValueError(f"Invalid URL format: {url}")
-                except Exception as e:
-                    self.logger.error(f"URL validation error: {str(e)}")
-                    return None, None
-
-                # Make request with timeout
-                timeout = aiohttp.ClientTimeout(
-                    total=self.config.get('request_timeout', 30),
-                    connect=self.config.get('connect_timeout', 10),
-                    sock_connect=10,
-                    sock_read=10
-                )
-
-                try:
-                    async with self.session.request(
-                        method, 
-                        url, 
-                        data=data, 
-                        headers=request_headers,
-                        ssl=False,
-                        timeout=timeout,
-                        allow_redirects=True,
-                        max_redirects=self.config.get('max_redirects', 5)
-                    ) as response:
-                        try:
-                            if method.upper() != 'HEAD':
-                                content = await response.text(encoding='utf-8')
-                            else:
-                                content = ''
-                            return response, content
-                        except UnicodeDecodeError:
-                            if method.upper() != 'HEAD':
-                                content = await response.text(encoding='latin-1')
-                            else:
-                                content = ''
-                            return response, content
-
-                except aiohttp.ClientError as e:
-                    self.logger.error(f"Request error on attempt {attempt + 1}: {str(e)}")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay)
-                        continue
-                    raise
+                async with self.session.request(
+                    method,
+                    url,
+                    data=data,
+                    headers=request_headers,
+                    ssl=False,
+                    timeout=timeout
+                ) as response:
+                    content = await response.text()
+                    return response, content
 
             except asyncio.TimeoutError:
-                self.logger.error(f"Request timeout on attempt {attempt + 1}")
+                self.logger.warning(f"Request timeout (attempt {attempt + 1}/{max_retries})")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay)
-                    continue
-                return None, None
-
+                continue
+            except aiohttp.ClientError as e:
+                self.logger.error(f"Request error: {str(e)} (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                continue
             except Exception as e:
-                self.logger.error(f"Request error on attempt {attempt + 1}: {str(e)}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay)
-                    continue
+                self.logger.error(f"Unexpected error: {str(e)}")
                 return None, None
 
+        self.logger.error(f"All {max_retries} request attempts failed")
         return None, None
 
     async def ensure_session(self):
@@ -224,18 +187,29 @@ class BaseScanner(ABC):
         """Implement in subclasses"""
         pass
 
-    def add_vulnerability(self, type_name, description, severity, details=None):
-        """Standardized vulnerability reporting"""
-        vuln = {
-            'type': type_name,
-            'description': description,
-            'severity': severity,
-            'details': details,
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'scanner': self.__class__.__name__
-        }
-        self.vulnerabilities.append(vuln)
-        self.log(f"Found {type_name} vulnerability: {description}", 'WARNING', details)
+    def add_vulnerability(self, vulnerability_type, description, severity="Medium", evidence=None, reproduction_steps=None):
+        """Add a vulnerability finding with enhanced details"""
+        try:
+            vulnerability = {
+                'type': vulnerability_type,
+                'description': description,
+                'severity': severity,
+                'evidence': evidence or {},
+                'reproduction_steps': reproduction_steps or [],
+                'timestamp': datetime.now().isoformat(),
+                'url': self.url,
+                'scanner': self.__class__.__name__
+            }
+            
+            self.vulnerabilities.append(vulnerability)
+            self.log(
+                f"Found {severity} severity {vulnerability_type} vulnerability",
+                level='WARNING',
+                details=vulnerability
+            )
+            
+        except Exception as e:
+            self.log(f"Error adding vulnerability: {str(e)}", level='ERROR')
 
     async def log_progress(self, message, color=Fore.YELLOW):
         """Log progress message"""

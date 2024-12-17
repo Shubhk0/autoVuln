@@ -66,7 +66,41 @@
                 <div class="vulnerabilities mb-3">
                     <h6>Vulnerabilities Found</h6>
                     <div id="vulnerabilitiesList" class="accordion">
-                        <!-- Vulnerabilities will be inserted here -->
+                        {% for result in results %}
+                        <div class="card mb-3">
+                            <div class="card-header bg-{{ result.severity|lower }}-subtle">
+                                <h5 class="card-title mb-0">{{ result.vulnerability_type }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Severity: {{ result.severity }}</h6>
+                                <p class="card-text">{{ result.description }}</p>
+                                
+                                <!-- Evidence Details -->
+                                {% if result.evidence %}
+                                <div class="mb-3">
+                                    <h6>Evidence:</h6>
+                                    <pre class="bg-light p-2"><code>{{ result.evidence|tojson(indent=2) }}</code></pre>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Reproduction Steps -->
+                                {% if result.reproduction_steps %}
+                                <div class="mb-3">
+                                    <h6>How to Reproduce:</h6>
+                                    <ol class="list-group list-group-numbered">
+                                        {% for step in result.reproduction_steps %}
+                                        <li class="list-group-item">{{ step }}</li>
+                                        {% endfor %}
+                                    </ol>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="text-muted small">
+                                    Found at: {{ result.timestamp|datetime if result.timestamp else 'Unknown time' }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>

